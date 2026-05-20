@@ -1,0 +1,95 @@
+/// Tier 6: Pub/Sub eventing + Monitoring.
+library;
+
+import 'package:terradart_core/terradart_core.dart';
+import 'package:terradart_google/monitoring.dart';
+import 'package:terradart_google/pubsub.dart';
+
+import 'main.dart';
+
+extension ObservabilityOnSingleProjectAppStack on SingleProjectAppStack {
+  void addObservability() {
+    final orderTopic = add(GooglePubsubTopic(
+      localName: 'orders_topic',
+      name: TfArg.literal('coffee-orders'),
+    ));
+
+    // Push subscription invokes the Cloud Run service with an OIDC token
+    // signed for the runSa identity. The Cloud Run invoker IAM in Tier 5 was
+    // set to allUsers, so runSa is a valid invoker.
+    //
+    // NOTE: `topic` must reference the topic's `.id` (full path
+    // `projects/{project}/topics/{name}`), NOT `.nameRef`. See the dartdoc
+    // on `google_pubsub_subscription.dart` — the provider expects the full
+    // resource path here.
+    // ignore: unused_local_variable
+    final orderSubscription = add(GooglePubsubSubscription(
+      localName: 'orders_subscription',
+      name: TfArg.literal('coffee-orders-sub'),
+      topic: TfArg.ref(orderTopic.id),
+      pushConfig: PushConfig(
+        pushEndpoint: TfArg.ref(coffeeService.uri),
+        oidcToken: OidcToken(
+          serviceAccountEmail: TfArg.ref(runSa.email),
+        ),
+      ),
+    ));
+
+    // ignore: unused_local_variable
+    final emailChannel = add(GoogleMonitoringNotificationChannel(
+      localName: 'email_channel',
+      displayName: TfArg.literal('Coffee Shop email'),
+      type: TfArg.literal('email'),
+      labels: TfArg.literal({'email_address': alertEmail}),
+    ));
+
+    // ignore: unused_local_variable
+    final uptimeCheck = add(GoogleMonitoringUptimeCheckConfig(
+      localName: 'coffee_uptime',
+      displayName: TfArg.literal('Coffee Shop uptime'),
+      timeout: TfArg.literal('10s'),
+      period: TfArg.literal('60s'),
+      monitoredResource: MonitoringUptimeCheckMonitoredResource(
+        type: 'uptime_url',
+        labels: {
+          'host':
+              '\${replace(replace(google_cloud_run_v2_service.coffee_service.uri, "https://", ""), "/", "")}',
+        },
+      ),
+      httpCheck: const MonitoringUptimeCheckHttpCheck(
+        path: '/',
+        port: 443,
+        useSsl: true,
+      ),
+    ));
+
+    // ignore: unused_local_variable
+    final downAlert = add(GoogleMonitoringAlertPolicy(
+      localName: 'coffee_down',
+      displayName: TfArg.literal('Coffee Shop down'),
+      combiner: TfArg.literal(AlertCombiner.or),
+      conditions: [
+        AlertCondition(
+          displayName: TfArg.literal('uptime check failing'),
+          conditionThreshold: ConditionThreshold(
+            filter: TfArg.literal(
+              'metric.type="monitoring.googleapis.com/uptime_check/check_passed" AND resource.type="uptime_url" AND metric.labels.check_id="\${google_monitoring_uptime_check_config.coffee_uptime.uptime_check_id}"',
+            ),
+            comparison: TfArg.literal(Comparison.lt),
+            thresholdValue: TfArg.literal(1),
+            duration: TfArg.literal('60s'),
+            aggregations: [
+              Aggregation(
+                alignmentPeriod: TfArg.literal('60s'),
+                perSeriesAligner: Aligner.nextOlder,
+              ),
+            ],
+          ),
+        ),
+      ],
+      notificationChannels: TfArg.literal([
+        '\${google_monitoring_notification_channel.email_channel.name}',
+      ]),
+    ));
+  }
+}
