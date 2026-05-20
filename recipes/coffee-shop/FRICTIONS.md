@@ -167,6 +167,20 @@ This is the same root cause as the "Backend abstraction missing" friction, but t
 
 **Tracked:** terradart#XXX (filed in Task 13).
 
+### Cloud Run container image choice matters for IAM: only `cloudrun/container/hello` works without explicit grants
+
+**Context:** D1a Tier 5 `terraform apply` for `google_cloud_run_v2_service.coffee_service` using image `asia-northeast1-docker.pkg.dev/google-samples/containers/hello-app:1.0`.
+
+**Friction:** `Error 403: Permission 'artifactregistry.repositories.downloadArtifacts' denied on resource (or it may not exist).` The `google-samples` AR repository requires the Cloud Run service agent (`service-<project_number>@serverless-robot-prod.iam.gserviceaccount.com`) to have explicit `roles/artifactregistry.reader` on the `google-samples` project — which is not auto-granted. The image is "publicly visible" but not "publicly pullable by managed service agents".
+
+The canonical Cloud Run public sample is `us-docker.pkg.dev/cloudrun/container/hello` — Google grants every GCP user's Cloud Run service agent `downloadArtifacts` permission on the `cloudrun` project automatically. This is the recommended starter image in Cloud Run's own quickstart docs.
+
+**Proposed fix (this recipe):** swap to `us-docker.pkg.dev/cloudrun/container/hello`.
+
+**Proposed fix (v1.0 polish):** add doc-comment guidance on `GoogleCloudRunV2Service.template.containers[].image` pointing to the canonical public hello image. Optionally provide a `CloudRunSampleImages.helloPublic` constant that recipes can reference.
+
+**Tracked:** terradart#XXX (filed in Task 13).
+
 ## D1b (GCS backend)
 
 (filled in during the D1b apply cycle.)

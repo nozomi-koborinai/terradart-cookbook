@@ -201,7 +201,7 @@ class CoffeeShopStack extends Stack {
         containers: [
           ServiceContainer(
             image: TfArg.literal(
-              'asia-northeast1-docker.pkg.dev/google-samples/containers/hello-app:1.0',
+              'us-docker.pkg.dev/cloudrun/container/hello',
             ),
             env: [
               EnvVar(
