@@ -1,4 +1,6 @@
 > Part of [terradart-cookbook](../../README.md). Library: [terradart](https://github.com/nozomi-koborinai/terradart).
+>
+> **Status (2026-05-20):** Validated end-to-end. State bucket created (Stage 0), recipe's own state + `single-project-app`'s 24-resource state both migrated to GCS backend, `terraform plan` returns "No changes." on the migrated state.
 
 # remote-backend
 

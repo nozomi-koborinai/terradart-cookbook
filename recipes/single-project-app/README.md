@@ -1,8 +1,10 @@
 > Part of [terradart-cookbook](../../README.md). Library: [terradart](https://github.com/nozomi-koborinai/terradart).
+>
+> **Status (2026-05-20):** Validated end-to-end. Stack applied successfully (24 resources), Pub/Sub → Cloud Run delivery confirmed, uptime check + alert policy registered, state migrated from local backend → GCS backend. See [FRICTIONS.md](./FRICTIONS.md) for findings.
 
 # single-project-app
 
-Pattern demonstrated: **single GCP project, end-to-end app surface**. Resources span Cloud Run (compute) + Cloud SQL (datastore) + Pub/Sub (messaging) + Monitoring (observability) + Secret Manager + IAM + Service Networking. Internal sample uses "coffee shop" naming (visit `lib/main.dart` for the actual resource names) but the recipe's identity is the PATTERN, not the imagined app domain.
+Pattern demonstrated: **single GCP project, end-to-end app surface**. Resources span Cloud Run (compute) + Cloud SQL (datastore) + Pub/Sub (messaging) + Monitoring (observability) + Secret Manager + IAM + Service Networking. Internal sample uses "coffee shop" naming (visit `lib/main.dart` for the actual resource names) but the recipe's identity is the PATTERN, not the imagined app domain. The dogfood session surfaced 13 friction entries (logged in FRICTIONS.md) that fed v1.0 polish issues on the terradart repo — see [`terradart#52`](https://github.com/nozomi-koborinai/terradart/issues/52) and adjacent.
 
 Webhook-driven coffee order tracker. Demonstrates terradart end-to-end with a real-world stack on Google Cloud.
 
