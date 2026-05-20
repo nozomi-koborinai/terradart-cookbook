@@ -135,6 +135,18 @@ This is the same root cause as the "Backend abstraction missing" friction, but t
 
 **Tracked:** terradart#XXX (filed in Task 13).
 
+### Tier 4 — `GoogleServiceAccount` IAM-binding getter name is unguessable
+
+**Context:** D1a Tier 4 implementation — wiring `GoogleServiceAccount` + three `GoogleProjectIamMember` bindings + one `GoogleSecretManagerSecretIamMember` per the Task 6 plan.
+
+**Friction:** the implementation plan was authored against the guessed getter name `runSa.emailMember` (i.e. "the email formatted as an IAM member string"). The actual getter on `GoogleServiceAccount` is `.member` — bare, no `email` prefix. The dartdoc on the resource explicitly recommends `.member` over manual `'serviceAccount:' + email` concatenation, but the bare name `member` doesn't telegraph what it returns. The natural first guesses (`.emailMember`, `.memberRef`, `.iamMember`, `.principal`) all fail. A reader scanning `GoogleServiceAccount`'s public surface sees five getters — `id`, `email`, `name`, `uniqueId`, `member` — and `.member` looks like it could be "the service account's primary identity field" rather than "the pre-formatted IAM-binding string".
+
+**Proposed fix:** in v1.0 polish wave, rename `GoogleServiceAccount.member` → `GoogleServiceAccount.iamMember` (or `iamMemberRef`) to make the intent self-documenting at the call site. The current dartdoc is good ("pre-formatted `serviceAccount:<email>` string. **Use this for IAM bindings**"), but the getter name itself fights the doc. Bonus: the same naming convention should propagate to any other resource that emits a member-formatted attribute (e.g. workload identity pool providers, federated identities).
+
+**Workaround used:** consulted `~/.pub-cache/hosted/pub.dev/terradart_google-0.8.0-dev/lib/src/iam/google_service_account.dart` to discover the actual getter name before writing call sites.
+
+**Tracked:** terradart#XXX (filed in Task 13).
+
 ## D1b (GCS backend)
 
 (filled in during the D1b apply cycle.)
