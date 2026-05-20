@@ -44,8 +44,15 @@ After the bucket is created, switch this recipe's own state into it:
    }
    ```
 
-2. Run `terraform init -migrate-state`. When prompted, type `yes` to copy local state to GCS.
-3. Confirm: `gsutil ls -r gs://terradart-validate-tfstate/remote-backend/` shows `default.tfstate`.
+2. **(One-time setup)** Ensure your ADC quota project matches the bucket's GCP project, otherwise terraform's GCS backend lookup hits a confusing 404:
+
+   ```bash
+   gcloud auth application-default set-quota-project terradart-validate
+   # OR (per-session): export GOOGLE_CLOUD_PROJECT=terradart-validate
+   ```
+
+3. Run `terraform init -migrate-state`. When prompted, type `yes` to copy local state to GCS.
+4. Confirm: `gsutil ls -r gs://terradart-validate-tfstate/remote-backend/` shows `default.tfstate`.
 
 ## Migrate `single-project-app` state into the bucket
 
@@ -61,6 +68,8 @@ terraform {
 ```
 
 Then `terraform init -migrate-state` in `single-project-app/tf-out/`. The 28-resource state moves into GCS.
+
+Same ADC quota project gotcha applies here — if you see a 404 "project not found" on init, run `gcloud auth application-default set-quota-project terradart-validate` (or set `GOOGLE_CLOUD_PROJECT=terradart-validate`) before retrying.
 
 ## Cost notes
 
