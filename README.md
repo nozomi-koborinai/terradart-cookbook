@@ -9,6 +9,7 @@ Each recipe is a self-contained Dart project under `recipes/<name>/` that depend
 | Recipe | What it demonstrates | terradart barrels used |
 |---|---|---|
 | [`single-project-app`](recipes/single-project-app/README.md) | Webhook on Cloud Run + private Cloud SQL + Pub/Sub + Monitoring + Secret Manager + IAM — pattern: 1 GCP project, end-to-end app surface | 8 |
+| [`remote-backend`](recipes/remote-backend/README.md) | GCS bucket for Terraform remote state — pattern: introduce GCS-backed remote state, Stage 0 bootstrap + migration | 1 |
 
 ## Usage
 
