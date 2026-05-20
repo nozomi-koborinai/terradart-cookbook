@@ -14,3 +14,15 @@ recipes/*/terraform/
 .idea/
 *.iml
 .vscode/
+
+# pubspec.lock policy: COMMITTED.
+# Recipes are apps (not libraries), so pinning transitive versions in
+# pubspec.lock gives reproducible local apply behavior across machines.
+# Do NOT add `pubspec.lock` to this ignore list.
+
+# macOS
+.DS_Store
+
+# Dart legacy / build artifacts
+build/
+.packages
