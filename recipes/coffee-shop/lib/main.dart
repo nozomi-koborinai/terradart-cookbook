@@ -6,8 +6,10 @@ import 'dart:convert' as dart_convert;
 import 'dart:io';
 
 import 'package:terradart_core/terradart_core.dart';
+import 'package:terradart_google/compute.dart';
 import 'package:terradart_google/project.dart';
 import 'package:terradart_google/provider.dart';
+import 'package:terradart_google/service_networking.dart';
 
 class CoffeeShopStack extends Stack {
   CoffeeShopStack({
@@ -54,7 +56,36 @@ class CoffeeShopStack extends Stack {
       disableOnDestroy: TfArg.literal(false),
     ));
 
-    // (Tier 2 through 6 added in subsequent tasks.)
+
+    // ===== Tier 2: Network (VPC + private services peering) ===============
+
+    final vpc = add(GoogleComputeNetwork(
+      localName: 'coffee_vpc',
+      name: TfArg.literal('coffee-shop-vpc'),
+      autoCreateSubnetworks: TfArg.literal(false),
+    ));
+
+    // ignore: unused_local_variable
+    final psaRange = add(GoogleComputeGlobalAddress(
+      localName: 'psa_range',
+      name: TfArg.literal('coffee-shop-psa-range'),
+      addressType: TfArg.literal(GlobalAddressType.internal),
+      purpose: TfArg.literal(GlobalAddressPurpose.vpcPeering),
+      prefixLength: TfArg.literal(16),
+      network: TfArg.ref(vpc.selfLink),
+    ));
+
+    // ignore: unused_local_variable
+    final psaConnection = add(GoogleServiceNetworkingConnection(
+      localName: 'psa',
+      network: TfArg.ref(vpc.selfLink),
+      service: TfArg.literal('servicenetworking.googleapis.com'),
+      reservedPeeringRanges: TfArg.literal([
+        '\${google_compute_global_address.psa_range.name}',
+      ]),
+    ));
+
+    // (Tier 3 through 6 added in subsequent tasks.)
   }
 
   @override
