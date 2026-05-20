@@ -1,0 +1,16 @@
+# Dart
+.dart_tool/
+
+# Terraform working dirs (synth output + state)
+recipes/*/tf-out/
+recipes/*/tf-bootstrap/
+recipes/*/terraform/
+**/.terraform/
+**/*.tfstate
+**/*.tfstate.backup
+**/terraform.tfstate.d/
+
+# IDE
+.idea/
+*.iml
+.vscode/
