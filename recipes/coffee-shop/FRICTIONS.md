@@ -109,6 +109,20 @@ A related sub-observation: `GoogleSecretManagerSecretVersion.secretData` is `@De
 
 **Tracked:** terradart#XXX (filed in Task 13).
 
+### CRITICAL — synth-time sensitive masking destroys apply for write-once secret fields
+
+**Context:** D1a Tier 3 `terraform apply` — first cycle after Tier 3 synth landed. `google_sql_database_instance.coffee_sql` (13m6s), `google_sql_database.coffee_db`, and `google_secret_manager_secret.db_password` (parent secret, 2s) all created successfully. Then `google_sql_user.coffee_user` and `google_secret_manager_secret_version.db_password_v1` failed.
+
+**Friction:** terradart_core v0.8.0-dev's synth pipeline masks any `TfArgLiteral` written to a field listed in the resource's `$sensitiveFields` set — replacing the literal with `""` empty string in `tf-out/main.tf.json` before terraform sees it. This is the same mechanism that prevents secrets from leaking into the synth output (see prior entry). But for fields that **must carry a non-empty value at apply time** (e.g. `google_sql_user.password` and `google_secret_manager_secret_version.secret_data`), the masking destroys the apply: terraform receives `password = ""` and the provider rejects it (`Error: googleapi: Error 400: Invalid request: missing required field`).
+
+Worse: the `Variable` / consumer-supplied interpolation API doesn't exist in v0.8.0-dev (`tf_ref.dart:16` reserves it for future), so the natural escape hatch — switch to `TfArg.variable(...)` and let `${var.db_password}` flow through unmasked — is unavailable. Users dogfooding Tier 3 hit a hard wall: the synth output's literal is silently destroyed and there's no obvious alternative in the public API.
+
+**Workaround applied:** swap `password` / `secretData` → `passwordWo` / `secretDataWo` (write-only variants). v0.8.0-dev's `$sensitiveFields` set does NOT include the `_wo` variants, so literal values pass through to terraform unmasked, go through the write-only attribute mechanism at apply (value flows to provider, never enters tfstate). Synth output now contains the literal `dbPassword` value in `tf-out/main.tf.json` — acceptable trade-off because `tf-out/` is gitignored AND the new attributes are the canonical idiom per `google_sql_user.dart:55-58` doc comments.
+
+**Proposed fix:** in v1.0 polish wave, two-part: (a) add `TfArg.variable(name)` (or equivalent) to `terradart_core` so consumers can route secrets through handwritten `variable` blocks when the resource's write-only API isn't ergonomic enough; (b) emit a clear synth-time diagnostic when a literal targets a masked field with no `_wo` alternative present — currently the masking is silent and the failure mode only surfaces at `terraform apply`. The `@Deprecated` annotation on `secretData` already nudges users toward `secretDataWo`; doing the same for `google_sql_user.password` would close the gap.
+
+**Tracked:** terradart#XXX (filed in Task 13).
+
 ### Duplicate `required_providers` between synth output and handwritten terraform.tf hard-blocks init
 
 **Context:** D1a `terraform init` immediately after upgrading to terraform 1.11+ (fixing the previous required_version friction).

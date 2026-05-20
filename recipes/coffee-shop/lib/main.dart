@@ -130,7 +130,8 @@ class CoffeeShopStack extends Stack {
       localName: 'coffee_user',
       name: TfArg.literal('coffee_app'),
       instance: TfArg.ref(sqlInstance.nameRef),
-      password: TfArg.literal(dbPassword),
+      passwordWo: TfArg.literal(dbPassword),
+      passwordWoVersion: TfArg.literal(1),
     ));
 
     final dbPasswordSecret = add(GoogleSecretManagerSecret(
@@ -143,8 +144,8 @@ class CoffeeShopStack extends Stack {
     final dbPasswordSecretVersion = add(GoogleSecretManagerSecretVersion(
       localName: 'db_password_v1',
       secret: TfArg.ref(dbPasswordSecret.id),
-      // ignore: deprecated_member_use
-      secretData: TfArg.literal(dbPassword),
+      secretDataWo: TfArg.literal(dbPassword),
+      secretDataWoVersion: TfArg.literal(1),
     ));
 
     // (Tier 4 through 6 added in subsequent tasks.)

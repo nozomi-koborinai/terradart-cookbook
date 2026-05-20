@@ -55,6 +55,7 @@ dart run bin/infra.dart           # synth -> tf-out/main.tf.json
 cd tf-out
 terraform init
 terraform plan
+# DB_PASSWORD flows via terradart synth → `password_wo` write-only attribute (not stored in tfstate).
 terraform apply -auto-approve
 
 # Smoke test
