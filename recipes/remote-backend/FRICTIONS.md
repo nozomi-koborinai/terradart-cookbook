@@ -38,4 +38,4 @@ This is a Terraform / Google provider behavior, not a terradart bug. But terrada
 > ```
 > or set `GOOGLE_CLOUD_PROJECT=<BUCKET_PROJECT_ID>` per session. Otherwise terraform's GCS backend lookup will hit a 404 "project not found" against your default quota project.
 
-**Tracked:** terradart#XXX (filed in Task 13). Note: this is a docs / UX issue, not a terradart_core code issue.
+**Tracked:** Documented in cookbook (no terradart code issue).
