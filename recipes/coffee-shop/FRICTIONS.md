@@ -62,6 +62,18 @@ terraform 1.11 was released 2025-02; it's reasonable to require recent versions,
 
 **Tracked:** terradart#XXX (filed in Task 13).
 
+### Duplicate `required_providers` between synth output and handwritten terraform.tf hard-blocks init
+
+**Context:** D1a `terraform init` immediately after upgrading to terraform 1.11+ (fixing the previous required_version friction).
+
+**Friction:** `Error: Duplicate required providers configuration` — `tf-out/terraform.tf` (handwritten, see "Backend block requires handwritten terraform.tf" friction above) declared `required_providers { google = ... }` to align the version pin, but synth output's `main.tf.json` already declares the same block at `main.tf.json:4`. terraform treats them as duplicates and refuses to init. Workaround was to reduce `terraform.tf` to `terraform { backend "local" {} }` only — drop `required_version` and `required_providers` and let synth own those declarations.
+
+This is the same root cause as the "Backend abstraction missing" friction, but the day-2 symptom is sharper: consumers attempting to follow the Terraform community convention (declare versions in `terraform.tf` for source-of-truth visibility) actively break init.
+
+**Proposed fix:** same as Backend abstraction (v1.0 A.1): if `Stack.backend` is set, synth emits the full `terraform { ... }` block including backend; user never authors `terraform.tf`. Alternatively (transitional): synth could detect a sibling `terraform.tf` and skip emitting `required_*` fields when present, but this is fragile.
+
+**Tracked:** terradart#XXX (filed in Task 13).
+
 ## D1b (GCS backend)
 
 (filled in during the D1b apply cycle.)
