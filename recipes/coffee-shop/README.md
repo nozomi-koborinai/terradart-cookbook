@@ -18,14 +18,16 @@ Webhook-driven coffee order tracker. Demonstrates terradart end-to-end with a re
 
 The recipe enables the following APIs via `google_project_service` resources — you do not need to enable them manually first:
 
-- `run.googleapis.com` (Cloud Run)
-- `sqladmin.googleapis.com` (Cloud SQL)
-- `pubsub.googleapis.com` (Pub/Sub)
-- `monitoring.googleapis.com` (Cloud Monitoring)
-- `secretmanager.googleapis.com` (Secret Manager)
+- `compute.googleapis.com` (Compute Engine — VPC, addresses)
 - `iam.googleapis.com` (IAM)
+- `monitoring.googleapis.com` (Cloud Monitoring)
+- `pubsub.googleapis.com` (Pub/Sub)
+- `run.googleapis.com` (Cloud Run)
+- `secretmanager.googleapis.com` (Secret Manager)
+- `servicenetworking.googleapis.com` (Service Networking — Cloud SQL private peering)
+- `sqladmin.googleapis.com` (Cloud SQL)
 
-Service Networking, Compute, and Storage APIs are typically already enabled on a fresh GCP project; if not, `terraform plan` will surface a clear error.
+Storage is typically already enabled on a fresh GCP project. If any of the above are missing on first apply, `terraform plan` will surface a clear 403 error pointing to the missing API.
 
 ## Cost notes
 

@@ -18,6 +18,18 @@ Findings from dogfooding terradart against the coffee-shop recipe. Each entry is
 
 ## D1a (local backend)
 
+### Fresh GCP projects miss compute + servicenetworking; Tier 1 plan assumption wrong
+
+**Context:** D1a Tier 2 `terraform apply` against a fresh `terradart-validate` project (no manual gcloud commands run beforehand).
+
+**Friction:** `Error 403: Compute Engine API has not been used in project terradart-validate ... SERVICE_DISABLED`. The dogfood plan listed only 6 APIs in Tier 1 (run / sql / pubsub / monitoring / secret / iam) and assumed compute + servicenetworking are pre-enabled. On a freshly-created GCP project (which is exactly what `terradart-validate` is), they aren't — Compute Engine has historically been auto-enabled for billing-linked legacy projects, but newly-created ones since ~2023 require explicit enablement.
+
+A subtler observation: terradart doesn't help the user discover this dependency. Importing `package:terradart_google/compute.dart` and adding `GoogleComputeNetwork` does NOT tell the dev "you need `google_project_service` for `compute.googleapis.com` first". They only learn from a runtime `terraform apply` error.
+
+**Proposed fix:** in v1.0 polish wave, ship a curated "API enablement helper": `Apis.required(barrels: [compute, service_networking, cloud_sql, ...])` that emits the necessary `google_project_service` set based on which terradart barrels the Stack imports / uses. This would prevent recipe authors from misconfiguring Tier 1.
+
+**Tracked:** terradart#XXX (filed in Task 13).
+
 ### Backend block requires handwritten terraform.tf
 
 **Context:** D1a tier 1 setup — synth produces `tf-out/main.tf.json` but does not emit a `terraform { backend "local" {} }` block.

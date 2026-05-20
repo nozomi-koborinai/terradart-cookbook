@@ -55,6 +55,16 @@ class CoffeeShopStack extends Stack {
       service: TfArg.literal('iam.googleapis.com'),
       disableOnDestroy: TfArg.literal(false),
     ));
+    final apiCompute = add(GoogleProjectService(
+      localName: 'api_compute',
+      service: TfArg.literal('compute.googleapis.com'),
+      disableOnDestroy: TfArg.literal(false),
+    ));
+    final apiServiceNetworking = add(GoogleProjectService(
+      localName: 'api_servicenetworking',
+      service: TfArg.literal('servicenetworking.googleapis.com'),
+      disableOnDestroy: TfArg.literal(false),
+    ));
 
 
     // ===== Tier 2: Network (VPC + private services peering) ===============
