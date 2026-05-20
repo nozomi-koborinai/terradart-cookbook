@@ -1,0 +1,14 @@
+name: coffee_shop
+description: terradart cookbook recipe — webhook on Cloud Run + Cloud SQL + Pub/Sub + Monitoring.
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ^3.6.0
+
+dependencies:
+  terradart_core: ^0.8.0-dev
+  terradart_google: ^0.8.0-dev
+
+dev_dependencies:
+  lints: ^6.0.0
