@@ -219,6 +219,31 @@ To unblock destroy, the dev had to (a) add `deletionProtection: TfArg.literal(fa
 
 **Tracked:** terradart#54.
 
+### Cloud SQL producer-side peering lingers after instance destroy; service_networking_connection blocks destroy chain
+
+**Context:** D1a closeout `terraform destroy` AFTER `google_sql_database_instance.coffee_sql` had already been destroyed (~15-20 minutes earlier).
+
+**Friction:** `Error: Unable to remove Service Networking Connection ... Failed to delete connection; Producer services (e.g. CloudSQL, Cloud Memstore, etc.) are still using this connection.` GCP's Cloud SQL tenant project (`h9cb7f1a3a38477dap-tp`) was still holding the consumer-side peering reservation even though Cloud SQL itself was gone. This is a well-known Google Cloud behavior — producer-side cleanup can take hours.
+
+The destroy chain halts at this resource, leaving 3 downstream resources (PSA connection + global_address + VPC) in a stuck state.
+
+**Workaround applied:** force-delete the consumer-side VPC peering via the Compute Engine API directly:
+
+```bash
+gcloud compute networks peerings delete servicenetworking-googleapis-com \
+  --network=coffee-shop-vpc \
+  --project=terradart-validate \
+  --quiet
+```
+
+After this, `terraform destroy` refreshes its plan and treats the PSA connection as already gone (state sync at refresh time), then proceeds to destroy `google_compute_global_address` (12s) + `google_compute_network` (22s) cleanly.
+
+**Proposed fix:** This is a GCP / Terraform google provider issue, not a terradart code bug. But the cookbook recipe + terradart docs should call out this teardown pattern explicitly: "If you destroyed a Cloud SQL instance with PSA peering, expect `terraform destroy` of the surrounding network resources to hang on the service_networking_connection. The workaround is to force-delete the consumer-side peering via `gcloud compute networks peerings delete servicenetworking-googleapis-com --network=<vpc> --project=<project>` before retrying."
+
+Optional terradart enhancement: a `Stack.teardown()` helper that orchestrates Cloud-SQL-PSA-aware destroy ordering, or a doc-comment on `GoogleServiceNetworkingConnection` explaining the producer-side cleanup quirk.
+
+**Tracked:** Documented in cookbook (no terradart code issue — provider behavior).
+
 ## D1b (GCS backend)
 
 (filled in during the D1b apply cycle.)

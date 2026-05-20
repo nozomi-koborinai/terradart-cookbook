@@ -69,6 +69,25 @@ curl -i "$SERVICE_URL"
 terraform destroy -auto-approve
 ```
 
+### Teardown gotcha
+
+If your Cloud SQL instance used a private-services-access peering (this recipe does — via `service_networking_connection`), `terraform destroy` will partially succeed and then hang on the PSA connection with `Producer services (e.g. CloudSQL, Cloud Memstore, etc.) are still using this connection.` even though Cloud SQL itself is already gone. GCP's tenant-side cleanup can take hours.
+
+**Workaround**: force-delete the consumer-side peering, then retry destroy:
+
+```bash
+gcloud compute networks peerings delete servicenetworking-googleapis-com \
+  --network=coffee-shop-vpc \
+  --project=terradart-validate \
+  --quiet
+
+# Re-run terraform destroy — refresh detects PSA connection missing,
+# proceeds with VPC + global_address cleanup.
+terraform destroy -auto-approve
+```
+
+See [FRICTIONS.md](./FRICTIONS.md) for the full context. This is a GCP / Terraform google provider behavior, not a terradart bug.
+
 ## D1b — GCS backend
 
 To switch to a GCS-backed state for the second dogfood phase, see [FRICTIONS.md](./FRICTIONS.md) and the `bin/bootstrap.dart` flow.
