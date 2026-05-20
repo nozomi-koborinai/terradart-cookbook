@@ -40,7 +40,7 @@ This recipe provisions billable resources. Rough estimates if left running 24h i
 
 ## Run
 
-Prerequisites: `gcloud auth application-default login` for an account with Owner on the target project. Terraform 1.5+.
+Prerequisites: `gcloud auth application-default login` for an account with Owner on the target project. Terraform 1.11+ (terradart synth currently hardcodes `required_version: ">= 1.11.0"`; see [FRICTIONS.md](./FRICTIONS.md)).
 
 ```bash
 export GCP_PROJECT_ID=terradart-validate

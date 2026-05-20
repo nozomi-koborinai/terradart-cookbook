@@ -48,6 +48,20 @@ Findings from dogfooding terradart against the coffee-shop recipe. Each entry is
 
 **Tracked:** terradart#XXX (filed in Task 13).
 
+### terradart hardcodes `required_version: ">= 1.11.0"`; older terraform users hard-blocked
+
+**Context:** D1a first `terraform init` against synth output `tf-out/main.tf.json` on the user's laptop.
+
+**Friction:** `Error: Unsupported Terraform Core version ... This configuration does not support Terraform version 1.5.7.` terradart_core v0.8.0-dev emits `"required_version": ">= 1.11.0"` unconditionally inside the synth output's `terraform` block. Consumers on terraform < 1.11 are hard-blocked — they cannot even read the plan without upgrading.
+
+terraform 1.11 was released 2025-02; it's reasonable to require recent versions, but: (a) the constraint should be configurable per Stack so library users can target older clusters; (b) the cookbook README incorrectly stated "Terraform 1.5+", which surfaced as a confusing blocker; (c) this is a stricter constraint than the cookbook recipe's `pubspec.yaml` advertises.
+
+**Proposed fix:** in sub-project A (v1.0 polish wave), expose `Stack.terraformVersionConstraint` (or similar field) that defaults to a sensible permissive value like `">= 1.5"` and lets advanced users tighten it. The handwritten `terraform.tf` constraint should then take precedence (or terradart should not emit `required_version` at all when consumer provides their own `terraform.tf`).
+
+**Workaround for D1a:** `brew upgrade hashicorp/tap/terraform` to get >= 1.11. Cookbook README updated to say "Terraform 1.11+" until v1.0 polish lands.
+
+**Tracked:** terradart#XXX (filed in Task 13).
+
 ## D1b (GCS backend)
 
 (filled in during the D1b apply cycle.)
