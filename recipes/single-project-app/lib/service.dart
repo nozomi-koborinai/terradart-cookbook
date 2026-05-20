@@ -3,12 +3,17 @@ library;
 
 import 'package:terradart_core/terradart_core.dart';
 import 'package:terradart_google/cloud_run.dart';
+import 'package:terradart_google/cloud_sql.dart';
+import 'package:terradart_google/iam.dart';
+import 'package:terradart_google/secret_manager.dart';
 
-import 'main.dart';
-
-extension ServiceOnSingleProjectAppStack on SingleProjectAppStack {
-  void addService() {
-    coffeeService = add(GoogleCloudRunV2Service(
+GoogleCloudRunV2Service buildCloudRunService({
+  required GoogleServiceAccount runSa,
+  required GoogleSqlDatabaseInstance sqlInstance,
+  required GoogleSqlDatabase sqlDatabase,
+  required GoogleSecretManagerSecret dbPasswordSecret,
+}) =>
+    GoogleCloudRunV2Service(
       localName: 'coffee_service',
       name: TfArg.literal('coffee-shop'),
       location: TfArg.literal('asia-northeast1'),
@@ -48,10 +53,12 @@ extension ServiceOnSingleProjectAppStack on SingleProjectAppStack {
           ),
         ],
       ),
-    ));
+    );
 
-    // ignore: unused_local_variable
-    final coffeeServiceInvoker = add(GoogleCloudRunV2ServiceIamMember(
+GoogleCloudRunV2ServiceIamMember buildCloudRunInvoker(
+  GoogleCloudRunV2Service coffeeService,
+) =>
+    GoogleCloudRunV2ServiceIamMember(
       localName: 'coffee_invoker',
       name: TfArg.ref(coffeeService.nameRef),
       location: TfArg.literal('asia-northeast1'),
@@ -59,6 +66,4 @@ extension ServiceOnSingleProjectAppStack on SingleProjectAppStack {
       // allUsers = public webhook. Acceptable for dogfood smoke; harden in
       // production by replacing with the upstream Pub/Sub push SA or similar.
       member: TfArg.literal('allUsers'),
-    ));
-  }
-}
+    );

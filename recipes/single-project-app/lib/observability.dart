@@ -2,28 +2,30 @@
 library;
 
 import 'package:terradart_core/terradart_core.dart';
+import 'package:terradart_google/cloud_run.dart';
+import 'package:terradart_google/iam.dart';
 import 'package:terradart_google/monitoring.dart';
 import 'package:terradart_google/pubsub.dart';
 
-import 'main.dart';
-
-extension ObservabilityOnSingleProjectAppStack on SingleProjectAppStack {
-  void addObservability() {
-    final orderTopic = add(GooglePubsubTopic(
+GooglePubsubTopic buildOrderTopic() => GooglePubsubTopic(
       localName: 'orders_topic',
       name: TfArg.literal('coffee-orders'),
-    ));
+    );
 
-    // Push subscription invokes the Cloud Run service with an OIDC token
-    // signed for the runSa identity. The Cloud Run invoker IAM in Tier 5 was
-    // set to allUsers, so runSa is a valid invoker.
-    //
-    // NOTE: `topic` must reference the topic's `.id` (full path
-    // `projects/{project}/topics/{name}`), NOT `.nameRef`. See the dartdoc
-    // on `google_pubsub_subscription.dart` — the provider expects the full
-    // resource path here.
-    // ignore: unused_local_variable
-    final orderSubscription = add(GooglePubsubSubscription(
+/// Push subscription invokes the Cloud Run service with an OIDC token signed
+/// for the runSa identity. The Cloud Run invoker IAM in Tier 5 was set to
+/// allUsers, so runSa is a valid invoker.
+///
+/// NOTE: `topic` must reference the topic's `.id` (full path
+/// `projects/{project}/topics/{name}`), NOT `.nameRef`. See the dartdoc on
+/// `google_pubsub_subscription.dart` — the provider expects the full resource
+/// path here.
+GooglePubsubSubscription buildOrderSubscription({
+  required GooglePubsubTopic orderTopic,
+  required GoogleCloudRunV2Service coffeeService,
+  required GoogleServiceAccount runSa,
+}) =>
+    GooglePubsubSubscription(
       localName: 'orders_subscription',
       name: TfArg.literal('coffee-orders-sub'),
       topic: TfArg.ref(orderTopic.id),
@@ -33,18 +35,20 @@ extension ObservabilityOnSingleProjectAppStack on SingleProjectAppStack {
           serviceAccountEmail: TfArg.ref(runSa.email),
         ),
       ),
-    ));
+    );
 
-    // ignore: unused_local_variable
-    final emailChannel = add(GoogleMonitoringNotificationChannel(
+GoogleMonitoringNotificationChannel buildEmailChannel(String alertEmail) =>
+    GoogleMonitoringNotificationChannel(
       localName: 'email_channel',
       displayName: TfArg.literal('Coffee Shop email'),
       type: TfArg.literal('email'),
       labels: TfArg.literal({'email_address': alertEmail}),
-    ));
+    );
 
-    // ignore: unused_local_variable
-    final uptimeCheck = add(GoogleMonitoringUptimeCheckConfig(
+GoogleMonitoringUptimeCheckConfig buildUptimeCheck(
+  GoogleCloudRunV2Service coffeeService,
+) =>
+    GoogleMonitoringUptimeCheckConfig(
       localName: 'coffee_uptime',
       displayName: TfArg.literal('Coffee Shop uptime'),
       timeout: TfArg.literal('10s'),
@@ -61,10 +65,12 @@ extension ObservabilityOnSingleProjectAppStack on SingleProjectAppStack {
         port: 443,
         useSsl: true,
       ),
-    ));
+    );
 
-    // ignore: unused_local_variable
-    final downAlert = add(GoogleMonitoringAlertPolicy(
+GoogleMonitoringAlertPolicy buildDownAlert(
+  GoogleMonitoringNotificationChannel emailChannel,
+) =>
+    GoogleMonitoringAlertPolicy(
       localName: 'coffee_down',
       displayName: TfArg.literal('Coffee Shop down'),
       combiner: TfArg.literal(AlertCombiner.or),
@@ -90,6 +96,4 @@ extension ObservabilityOnSingleProjectAppStack on SingleProjectAppStack {
       notificationChannels: TfArg.literal([
         '\${google_monitoring_notification_channel.email_channel.name}',
       ]),
-    ));
-  }
-}
+    );

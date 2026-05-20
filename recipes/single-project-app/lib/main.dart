@@ -5,21 +5,16 @@
 ///
 /// The Stack composition is split across per-service files (`apis.dart`,
 /// `network.dart`, `datastore.dart`, `iam.dart`, `service.dart`,
-/// `observability.dart`), each exposing one extension method on
-/// `SingleProjectAppStack`. The constructor calls them in dependency order.
+/// `observability.dart`), each exposing pure builder functions that RETURN
+/// constructed resources. `main.dart` is the only place that calls
+/// `Stack.add(...)`, so the whole composition is visible at a glance.
 library;
 
 import 'dart:convert' as dart_convert;
 import 'dart:io';
 
 import 'package:terradart_core/terradart_core.dart';
-import 'package:terradart_google/cloud_run.dart';
-import 'package:terradart_google/cloud_sql.dart';
-import 'package:terradart_google/compute.dart';
-import 'package:terradart_google/iam.dart';
 import 'package:terradart_google/provider.dart';
-import 'package:terradart_google/secret_manager.dart';
-import 'package:terradart_google/service_networking.dart';
 
 import 'apis.dart';
 import 'datastore.dart';
@@ -38,27 +33,60 @@ class SingleProjectAppStack extends Stack {
             GoogleProvider(project: projectId, region: 'asia-northeast1'),
           ],
         ) {
-    addApis();
-    addNetwork();
-    addDatastore();
-    addIam();
-    addService();
-    addObservability();
+    // ===== Tier 1 — API enablement (8 services) ===========================
+    for (final api in buildProjectServices()) {
+      add(api);
+    }
+
+    // ===== Tier 2 — Network (VPC + PSA chain) =============================
+    final vpc = add(buildVpc());
+    add(buildPsaRange(vpc));
+    final psaConnection = add(buildPsaConnection(vpc));
+
+    // ===== Tier 3 — Datastore (Cloud SQL + Secret Manager) ================
+    final sqlInstance = add(buildSqlInstance(
+      vpc: vpc,
+      psaConnection: psaConnection,
+    ));
+    final sqlDatabase = add(buildSqlDatabase(sqlInstance));
+    add(buildSqlUser(sqlInstance, dbPassword));
+    final dbPasswordSecret = add(buildDbPasswordSecret());
+    add(buildDbPasswordSecretVersion(dbPasswordSecret, dbPassword));
+
+    // ===== Tier 4 — IAM (SA + role bindings + secret access) ==============
+    final runSa = add(buildRunSa());
+    for (final binding in buildProjectIamBindings(
+      projectId: projectId,
+      runSa: runSa,
+    )) {
+      add(binding);
+    }
+    add(buildSecretIamMember(dbPasswordSecret, runSa));
+
+    // ===== Tier 5 — Cloud Run v2 service ==================================
+    final coffeeService = add(buildCloudRunService(
+      runSa: runSa,
+      sqlInstance: sqlInstance,
+      sqlDatabase: sqlDatabase,
+      dbPasswordSecret: dbPasswordSecret,
+    ));
+    add(buildCloudRunInvoker(coffeeService));
+
+    // ===== Tier 6 — Pub/Sub + Monitoring ==================================
+    final orderTopic = add(buildOrderTopic());
+    add(buildOrderSubscription(
+      orderTopic: orderTopic,
+      coffeeService: coffeeService,
+      runSa: runSa,
+    ));
+    final emailChannel = add(buildEmailChannel(alertEmail));
+    add(buildUptimeCheck(coffeeService));
+    add(buildDownAlert(emailChannel));
   }
 
   final String projectId;
   final String dbPassword;
   final String alertEmail;
-
-  // Cross-extension shared refs (set by the corresponding extension method).
-  // Public to allow extensions in separate libraries to read/write.
-  late final GoogleComputeNetwork vpc;
-  late final GoogleServiceNetworkingConnection psaConnection;
-  late final GoogleSqlDatabaseInstance sqlInstance;
-  late final GoogleSqlDatabase sqlDatabase;
-  late final GoogleSecretManagerSecret dbPasswordSecret;
-  late final GoogleServiceAccount runSa;
-  late final GoogleCloudRunV2Service coffeeService;
 
   @override
   Future<void> synth({required String outDir}) async {

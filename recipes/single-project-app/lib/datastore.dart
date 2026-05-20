@@ -3,13 +3,15 @@ library;
 
 import 'package:terradart_core/terradart_core.dart';
 import 'package:terradart_google/cloud_sql.dart';
+import 'package:terradart_google/compute.dart';
 import 'package:terradart_google/secret_manager.dart';
+import 'package:terradart_google/service_networking.dart';
 
-import 'main.dart';
-
-extension DatastoreOnSingleProjectAppStack on SingleProjectAppStack {
-  void addDatastore() {
-    sqlInstance = add(GoogleSqlDatabaseInstance(
+GoogleSqlDatabaseInstance buildSqlInstance({
+  required GoogleComputeNetwork vpc,
+  required GoogleServiceNetworkingConnection psaConnection,
+}) =>
+    GoogleSqlDatabaseInstance(
       localName: 'coffee_sql',
       name: TfArg.literal('coffee-shop-sql'),
       databaseVersion: TfArg.literal(DatabaseVersion.postgres15),
@@ -26,35 +28,38 @@ extension DatastoreOnSingleProjectAppStack on SingleProjectAppStack {
       // ResourceDependency builder (terradart_core exposes a first-class
       // `dependsOn: List<DependencyTarget>?` parameter).
       dependsOn: [ResourceDependency(psaConnection)],
-    ));
+    );
 
-    sqlDatabase = add(GoogleSqlDatabase(
+GoogleSqlDatabase buildSqlDatabase(GoogleSqlDatabaseInstance sqlInstance) =>
+    GoogleSqlDatabase(
       localName: 'coffee_db',
       name: TfArg.literal('coffee_orders'),
       instance: TfArg.ref(sqlInstance.nameRef),
-    ));
+    );
 
-    // ignore: unused_local_variable
-    final sqlUser = add(GoogleSqlUser(
+GoogleSqlUser buildSqlUser(
+        GoogleSqlDatabaseInstance sqlInstance, String dbPassword) =>
+    GoogleSqlUser(
       localName: 'coffee_user',
       name: TfArg.literal('coffee_app'),
       instance: TfArg.ref(sqlInstance.nameRef),
       passwordWo: TfArg.literal(dbPassword),
       passwordWoVersion: TfArg.literal(1),
-    ));
+    );
 
-    dbPasswordSecret = add(GoogleSecretManagerSecret(
+GoogleSecretManagerSecret buildDbPasswordSecret() => GoogleSecretManagerSecret(
       localName: 'db_password',
       secretId: TfArg.literal('coffee-shop-db-password'),
       replication: Replication.auto(),
-    ));
+    );
 
-    // ignore: unused_local_variable
-    final dbPasswordSecretVersion = add(GoogleSecretManagerSecretVersion(
+GoogleSecretManagerSecretVersion buildDbPasswordSecretVersion(
+  GoogleSecretManagerSecret secret,
+  String dbPassword,
+) =>
+    GoogleSecretManagerSecretVersion(
       localName: 'db_password_v1',
-      secret: TfArg.ref(dbPasswordSecret.id),
+      secret: TfArg.ref(secret.id),
       secretDataWo: TfArg.literal(dbPassword),
       secretDataWoVersion: TfArg.literal(1),
-    ));
-  }
-}
+    );
