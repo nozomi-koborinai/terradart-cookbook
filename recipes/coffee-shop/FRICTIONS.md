@@ -167,6 +167,32 @@ This is the same root cause as the "Backend abstraction missing" friction, but t
 
 **Tracked:** terradart#XXX (filed in Task 13).
 
+### Tier 6 — Monitoring nested-block helpers are inconsistent about `TfArg` wrapping; enum names diverge from plan author guesses
+
+**Context:** D1a Tier 6 implementation — wiring `GooglePubsubTopic` + `GooglePubsubSubscription` (push to Cloud Run + OIDC token) + `GoogleMonitoringNotificationChannel` (email) + `GoogleMonitoringUptimeCheckConfig` + `GoogleMonitoringAlertPolicy` per the Task 8 plan.
+
+**Friction:** several discrepancies between the plan author's natural guesses and the actual v0.8.0-dev exports surfaced during Step 1 verification:
+
+1. **`MonitoringUptimeCheckMonitoredResource` and `MonitoringUptimeCheckHttpCheck` fields are plain Dart types, NOT `TfArg<T>`.** The plan was written assuming the typical terradart pattern of "every settable field is `TfArg<T>`" (which is the rule for `Resource` constructors). For nested-block helpers in the monitoring barrel, fields like `type` / `labels` / `port` / `path` / `useSsl` are plain `String` / `Map<String, String>` / `int` / `bool`. This is internally consistent inside the monitoring barrel but inconsistent with the project-wide "wire via `TfArg`" hygiene rule — a consumer who's been using `TfArg.literal(...)` everywhere will reach for it here and hit a static type error.
+
+2. **`Aggregation.perSeriesAligner` is `Aligner?`, NOT `TfArg<Aligner>?`.** Same inconsistency: `Aggregation.alignmentPeriod` is `TfArg<String>?` (TfArg-wrapped), but `perSeriesAligner` and `crossSeriesReducer` are bare enums. The plan attempted `TfArg.literal(Aligner.alignNextOlder)`; the actual API is `Aligner.nextOlder` (bare enum value, no TfArg wrapper).
+
+3. **Enum value names differ from plain-English guesses.** Plan guessed `Comparison.lessThan` and `Aligner.alignNextOlder`. Actual names are `Comparison.lt` (terse abbreviation) and `Aligner.nextOlder` (no `align` prefix — the prefix lives in the `terraformValue` `'ALIGN_NEXT_OLDER'`). Symmetry-of-naming reading would expect either both terse or both verbose.
+
+4. **`GooglePubsubSubscription.topic` requires `.id`, NOT `.nameRef`.** The plan attempted `TfArg.ref(orderTopic.nameRef)`. The actual provider expects the full resource path `projects/{project}/topics/{name}`, which is what `.id` returns. The dartdoc on `google_pubsub_subscription.dart` is explicit about this ("NOT `topic.nameRef`"), but the more general lesson is that consumers can't tell from the call site whether a given consumer field wants `.nameRef` vs `.id` — and the wrong choice produces a runtime apply error, not a synth-time signal.
+
+5. **`Aggregation` cannot be `const`-constructed when its fields use `TfArg.literal(...)`.** `TfArg.literal` is a static method, not a const constructor; `TfArgLiteral<T>(...)` is the const-constructible form. Mixing nested helpers (which often want `const`) with `TfArg.literal` argument calls silently breaks `const`-ness. The call site has to drop `const` on the outer collection literal.
+
+**Proposed fix:** in v1.0 polish wave, three adjustments:
+
+- **(a)** Decide on a uniform "wrap or not" policy for nested-block helpers across all barrels. Either every settable field is `TfArg<T>` (consistent with `Resource` constructors, requires more verbose call sites), OR nested helpers expose plain Dart types and document this contrast prominently. Halfway (some fields TfArg, some plain) confuses consumers.
+- **(b)** Audit enum names for length consistency. `Comparison.gt/ge/lt/le/eq/ne` (terse) vs `Aligner.nextOlder/percentile99/...` (verbose) reads inconsistent. Either go terse everywhere (`Comparison.lt` + `Aligner.no`) or verbose everywhere (`Comparison.lessThan` + `Aligner.nextOlder`).
+- **(c)** For ref-style fields where the consumer ambiguously expects `.nameRef` vs `.id`, add a type-level distinction (`TfRefName<T>` vs `TfRefId<T>`?) or at minimum a doc comment on the consumer field telling readers "expects `.id` not `.nameRef`" — currently only the producing resource's getter doc has this info.
+
+**Workaround used:** read `~/.pub-cache/hosted/pub.dev/terradart_google-0.8.0-dev/lib/src/monitoring/google_monitoring_alert_policy.dart` and `google_monitoring_uptime_check_config.dart` directly; adapted call sites to match the actual API (bare enums where required, plain Dart types where required, `.id` for the topic reference). Synth output verified end-to-end via `jq` against `tf-out/main.tf.json` — all 5 Tier 6 resources emit valid Terraform JSON.
+
+**Tracked:** terradart#XXX (filed in Task 13).
+
 ### Cloud Run container image choice matters for IAM: only `cloudrun/container/hello` works without explicit grants
 
 **Context:** D1a Tier 5 `terraform apply` for `google_cloud_run_v2_service.coffee_service` using image `asia-northeast1-docker.pkg.dev/google-samples/containers/hello-app:1.0`.
