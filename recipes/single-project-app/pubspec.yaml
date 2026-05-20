@@ -1,5 +1,5 @@
-name: coffee_shop
-description: terradart cookbook recipe — webhook on Cloud Run + Cloud SQL + Pub/Sub + Monitoring.
+name: single_project_app
+description: terradart cookbook recipe — single-project Cloud Run + Cloud SQL + Pub/Sub + Monitoring webhook stack. Sample uses "coffee shop" naming inside but the recipe pattern is "1 GCP project, end-to-end app surface".
 homepage: https://github.com/nozomi-koborinai/terradart-cookbook
 repository: https://github.com/nozomi-koborinai/terradart-cookbook
 publish_to: none

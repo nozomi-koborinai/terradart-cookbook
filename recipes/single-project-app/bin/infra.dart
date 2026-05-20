@@ -3,7 +3,7 @@ library;
 
 import 'dart:io';
 
-import 'package:coffee_shop/main.dart';
+import 'package:single_project_app/main.dart';
 
 Future<void> main() async {
   final projectId = Platform.environment['GCP_PROJECT_ID'];
@@ -21,7 +21,7 @@ Future<void> main() async {
     stderr.writeln('error: set ALERT_EMAIL env var (notification channel destination)');
     exit(64);
   }
-  final stack = CoffeeShopStack(
+  final stack = SingleProjectAppStack(
     projectId: projectId,
     dbPassword: dbPassword,
     alertEmail: alertEmail,

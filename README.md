@@ -8,7 +8,7 @@ Each recipe is a self-contained Dart project under `recipes/<name>/` that depend
 
 | Recipe | What it demonstrates | terradart barrels used |
 |---|---|---|
-| [`coffee-shop`](recipes/coffee-shop/README.md) | Webhook on Cloud Run + private Cloud SQL + Pub/Sub + Monitoring + Secret Manager + IAM | 8 |
+| [`single-project-app`](recipes/single-project-app/README.md) | Webhook on Cloud Run + private Cloud SQL + Pub/Sub + Monitoring + Secret Manager + IAM — pattern: 1 GCP project, end-to-end app surface | 8 |
 
 ## Usage
 

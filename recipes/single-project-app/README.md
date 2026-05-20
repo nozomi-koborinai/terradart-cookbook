@@ -1,6 +1,8 @@
 > Part of [terradart-cookbook](../../README.md). Library: [terradart](https://github.com/nozomi-koborinai/terradart).
 
-# coffee-shop
+# single-project-app
+
+Pattern demonstrated: **single GCP project, end-to-end app surface**. Resources span Cloud Run (compute) + Cloud SQL (datastore) + Pub/Sub (messaging) + Monitoring (observability) + Secret Manager + IAM + Service Networking. Internal sample uses "coffee shop" naming (visit `lib/main.dart` for the actual resource names) but the recipe's identity is the PATTERN, not the imagined app domain.
 
 Webhook-driven coffee order tracker. Demonstrates terradart end-to-end with a real-world stack on Google Cloud.
 

@@ -17,8 +17,8 @@ import 'package:terradart_google/pubsub.dart';
 import 'package:terradart_google/secret_manager.dart';
 import 'package:terradart_google/service_networking.dart';
 
-class CoffeeShopStack extends Stack {
-  CoffeeShopStack({
+class SingleProjectAppStack extends Stack {
+  SingleProjectAppStack({
     required String projectId,
     required String dbPassword,
     required String alertEmail,
