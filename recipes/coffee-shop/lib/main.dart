@@ -6,15 +6,16 @@ import 'dart:convert' as dart_convert;
 import 'dart:io';
 
 import 'package:terradart_core/terradart_core.dart';
+import 'package:terradart_google/cloud_sql.dart';
 import 'package:terradart_google/compute.dart';
 import 'package:terradart_google/project.dart';
 import 'package:terradart_google/provider.dart';
+import 'package:terradart_google/secret_manager.dart';
 import 'package:terradart_google/service_networking.dart';
 
 class CoffeeShopStack extends Stack {
   CoffeeShopStack({
     required String projectId,
-    // ignore: unused_element_parameter
     required String dbPassword,
     // ignore: unused_element_parameter
     required String alertEmail,
@@ -55,11 +56,13 @@ class CoffeeShopStack extends Stack {
       service: TfArg.literal('iam.googleapis.com'),
       disableOnDestroy: TfArg.literal(false),
     ));
+    // ignore: unused_local_variable
     final apiCompute = add(GoogleProjectService(
       localName: 'api_compute',
       service: TfArg.literal('compute.googleapis.com'),
       disableOnDestroy: TfArg.literal(false),
     ));
+    // ignore: unused_local_variable
     final apiServiceNetworking = add(GoogleProjectService(
       localName: 'api_servicenetworking',
       service: TfArg.literal('servicenetworking.googleapis.com'),
@@ -85,7 +88,6 @@ class CoffeeShopStack extends Stack {
       network: TfArg.ref(vpc.selfLink),
     ));
 
-    // ignore: unused_local_variable
     final psaConnection = add(GoogleServiceNetworkingConnection(
       localName: 'psa',
       network: TfArg.ref(vpc.selfLink),
@@ -95,7 +97,57 @@ class CoffeeShopStack extends Stack {
       ]),
     ));
 
-    // (Tier 3 through 6 added in subsequent tasks.)
+    // ===== Tier 3: Datastore (private Cloud SQL) + Secret =================
+
+    final sqlInstance = add(GoogleSqlDatabaseInstance(
+      localName: 'coffee_sql',
+      name: TfArg.literal('coffee-shop-sql'),
+      databaseVersion: TfArg.literal(DatabaseVersion.postgres15),
+      region: TfArg.literal('asia-northeast1'),
+      deletionProtection: TfArg.literal(false),
+      settings: Settings(
+        tier: TfArg.literal('db-f1-micro'),
+        ipConfiguration: IpConfiguration(
+          ipv4Enabled: TfArg.literal(false),
+          privateNetwork: TfArg.ref(vpc.selfLink),
+        ),
+      ),
+      // SQL instance requires PSA peering active; declared via the typed
+      // ResourceDependency builder (terradart_core exposes a first-class
+      // `dependsOn: List<DependencyTarget>?` parameter).
+      dependsOn: [ResourceDependency(psaConnection)],
+    ));
+
+    // ignore: unused_local_variable
+    final sqlDatabase = add(GoogleSqlDatabase(
+      localName: 'coffee_db',
+      name: TfArg.literal('coffee_orders'),
+      instance: TfArg.ref(sqlInstance.nameRef),
+    ));
+
+    // ignore: unused_local_variable
+    final sqlUser = add(GoogleSqlUser(
+      localName: 'coffee_user',
+      name: TfArg.literal('coffee_app'),
+      instance: TfArg.ref(sqlInstance.nameRef),
+      password: TfArg.literal(dbPassword),
+    ));
+
+    final dbPasswordSecret = add(GoogleSecretManagerSecret(
+      localName: 'db_password',
+      secretId: TfArg.literal('coffee-shop-db-password'),
+      replication: Replication.auto(),
+    ));
+
+    // ignore: unused_local_variable
+    final dbPasswordSecretVersion = add(GoogleSecretManagerSecretVersion(
+      localName: 'db_password_v1',
+      secret: TfArg.ref(dbPasswordSecret.id),
+      // ignore: deprecated_member_use
+      secretData: TfArg.literal(dbPassword),
+    ));
+
+    // (Tier 4 through 6 added in subsequent tasks.)
   }
 
   @override

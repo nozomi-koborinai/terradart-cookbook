@@ -74,6 +74,41 @@ terraform 1.11 was released 2025-02; it's reasonable to require recent versions,
 
 **Tracked:** terradart#XXX (filed in Task 13).
 
+### `google_project_service` "created" signal lags actual API usability by 30-60s
+
+**Context:** D1a Tier 2 second apply attempt (after Fix "Add compute + servicenetworking to Tier 1").
+
+**Friction:** `terraform apply` created `google_project_service.api_compute` and `api_servicenetworking` in 1m46s, then immediately tried `google_compute_network.coffee_vpc` — and hit `Error 403: Compute Engine API has not been used ... SERVICE_DISABLED`. The API was "created" per Terraform's view, but GCP backend propagation hadn't completed. Re-running `terraform apply` 1-2 minutes later succeeded (3 resources in ~1m19s).
+
+This is a well-known Terraform / google provider issue but it surfaces sharply in fresh-project dogfood because every API enable is on the critical path. Common workaround: insert a `time_sleep` resource between `google_project_service` completion and dependent resources.
+
+**Proposed fix:** in v1.0 polish wave, optionally have terradart's hypothetical `Apis.required(...)` helper (see prior friction) wrap dependent resources behind a `time_sleep` of 30-60s. Alternatively (less invasive): emit a doc comment / barrel-level guidance pointing at the `time_sleep` pattern.
+
+**Workaround used:** re-run `terraform apply` — Terraform's `google_compute_network` errored cleanly, no partial state.
+
+**Tracked:** terradart#XXX (filed in Task 13).
+
+### Tier 3 API surface deviates from plan-author guesses — naming conventions worth a doc pass
+
+**Context:** D1a Tier 3 implementation — wiring `GoogleSqlDatabaseInstance` + `GoogleSecretManagerSecret` per the Task 5 plan.
+
+**Friction:** the implementation plan was authored against guessed class names that did not match terradart_google v0.8.0-dev exports. Four discrepancies surfaced during Step 1 verification:
+
+1. **`SqlInstanceSettings` → `Settings`** (plain `Settings`, scoped under `cloud_sql.dart`). The naming is unprefixed even though it's specific to Cloud SQL — at the call site `Settings(...)` reads as ambiguous (Settings of what?). A consumer importing multiple barrels could plausibly hit a name collision.
+2. **`SqlIpConfiguration` → `IpConfiguration`** (same pattern — unprefixed nested-block helper).
+3. **`SecretReplication.automatic()` → `Replication.auto()`** (sealed factory; subclasses are `_AutoReplication` / `_UserManagedReplication`). The factory name `auto` is reasonable but the `SecretReplication` prefix the plan author guessed would have helped find it.
+4. **`GoogleSecretManagerSecret.idRef` → `.id`** (returns `TfRef<String>`, so functionally equivalent — just `id` not `idRef`).
+
+The cloud_sql quickstart at `examples/cloud_sql_quickstart/lib/main.dart` documents the correct names; reading that first prevented a compile failure. But without the quickstart, the natural first guess (resource-prefixed nested-block classes) is wrong.
+
+**Proposed fix:** in v1.0 polish wave, decide on a naming convention for nested-block helpers and apply it consistently across all barrels — either prefix every helper with the resource it belongs to (`SqlInstanceSettings` / `SqlIpConfiguration` / `SecretReplication`) for clarity, OR document that bare helpers (`Settings`, `IpConfiguration`, `Replication`) are scoped per barrel and recommend `import 'package:terradart_google/cloud_sql.dart' as cloud_sql;` show-style aliasing. Either resolution should propagate to `dart doc` pages and the cookbook README.
+
+A related sub-observation: `GoogleSecretManagerSecretVersion.secretData` is `@Deprecated` (per spec §10.4, prefer `secretDataWo` write-only API), so call sites need `// ignore: deprecated_member_use` until the cookbook recipe migrates to the write-only flow. The recipe stays on `secretData` for Tier 3 because Tier 4-6 haven't been written yet — once Cloud Run mounts the secret, switching to `secretDataWo` should be straightforward.
+
+**Workaround used:** consulted `~/.pub-cache/hosted/pub.dev/terradart_google-0.8.0-dev/lib/src/sql/` directly to discover the actual exports before writing call sites. Sensitive masking confirmed working: at synth time both `google_sql_user.password` and `google_secret_manager_secret_version.secret_data` are emitted as `""` in `main.tf.json` (verified via `jq` against `tf-out/main.tf.json`), so the literal `dbPassword` value does NOT leak into the synth output.
+
+**Tracked:** terradart#XXX (filed in Task 13).
+
 ### Duplicate `required_providers` between synth output and handwritten terraform.tf hard-blocks init
 
 **Context:** D1a `terraform init` immediately after upgrading to terraform 1.11+ (fixing the previous required_version friction).
