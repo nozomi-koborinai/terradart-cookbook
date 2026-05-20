@@ -207,6 +207,18 @@ The canonical Cloud Run public sample is `us-docker.pkg.dev/cloudrun/container/h
 
 **Tracked:** terradart#XXX (filed in Task 13).
 
+### Cloud Run v2 service has `deletion_protection = true` provider default; recipe-author must explicitly disable
+
+**Context:** D1a closeout `terraform destroy` against the 24-resource stack on `terradart-validate`.
+
+**Friction:** `Error: cannot destroy service without setting deletion_protection=false and running terraform apply`. The recipe's Tier 5 builder (`buildCloudRunService`) did not specify `deletionProtection`, so the Terraform google provider's default of `true` applied silently. `terraform destroy` partially succeeded — Pub/Sub topics, subscriptions, IAM bindings, monitoring resources, and notification channels destroyed cleanly — but the Cloud Run service block halted the chain, leaving ~6 resources orphaned (SQL instance, Cloud Run service, SA, secret, VPC, global_address, service_networking_connection).
+
+To unblock destroy, the dev had to (a) add `deletionProtection: TfArg.literal(false)` to the builder, (b) re-run `terraform apply` to push the new value to the existing service, then (c) re-run `terraform destroy`. The dogfood already explicitly sets `deletionProtection: false` on `GoogleSqlDatabaseInstance` for the same reason — Cloud Run v2 was simply overlooked.
+
+**Proposed fix:** terradart's docs / quickstarts should consistently flag "sample / dogfood code should explicitly set `deletionProtection: false` on every resource that has the field" — Cloud Run v2, Cloud SQL, Secret Manager (when supported), GCS bucket, BigQuery dataset, etc. Optionally: add a `Stack.devMode` or `Stack.deletionProtectionDefault` flag that recipe authors flip once instead of repeating per resource.
+
+**Tracked:** terradart#XXX (filed in Task 13).
+
 ## D1b (GCS backend)
 
 (filled in during the D1b apply cycle.)

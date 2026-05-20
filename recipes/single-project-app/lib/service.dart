@@ -18,6 +18,7 @@ GoogleCloudRunV2Service buildCloudRunService({
       name: TfArg.literal('coffee-shop'),
       location: TfArg.literal('asia-northeast1'),
       ingress: TfArg.literal(Ingress.all),
+      deletionProtection: TfArg.literal(false),
       template: Template(
         serviceAccount: TfArg.ref(runSa.email),
         containers: [
