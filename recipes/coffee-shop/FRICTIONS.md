@@ -147,6 +147,26 @@ This is the same root cause as the "Backend abstraction missing" friction, but t
 
 **Tracked:** terradart#XXX (filed in Task 13).
 
+### Tier 5 — Cloud Run v2 env-var helper shape diverges from natural guess; `locationRef` getter missing
+
+**Context:** D1a Tier 5 implementation — wiring `GoogleCloudRunV2Service` with 4 env vars (3 literal sourced from refs, 1 from Secret Manager) + `GoogleCloudRunV2ServiceIamMember` per the Task 7 plan.
+
+**Friction:** two distinct discrepancies surfaced while writing Tier 5 against terradart_google v0.8.0-dev's actual exports:
+
+1. **`EnvVar` is a wrapper, not the leaf type.** The Task 7 plan author's natural guess (informed by the synth-test pattern names already in our project memory) was a flat shape — `EnvVarFromLiteral(name: ..., value: ...)` / `EnvVarFromSecret(name: ..., secret: ..., version: ...)`. The actual API is `EnvVar(name: 'DB_INSTANCE', source: EnvVarFromLiteral(TfArg.literal('...')))` — i.e. `EnvVar` carries the name (plain `String`, not `TfArg<String>`) and dispatches to a sealed `EnvVarSource` (`EnvVarFromLiteral(value)` positional / `EnvVarFromSecret({secret, version})`) for the value source. This shape models the Terraform schema's `value` vs `value_source.secret_key_ref` exactly_one_of constraint at the type level, which is good — but the wrapper-vs-leaf layering isn't telegraphed by the export list (`EnvVar` / `EnvVarFromLiteral` / `EnvVarFromSecret` / `EnvVarSource` all sit at the same level in `cloud_run.dart`). A consumer scanning the exports could plausibly read `EnvVarFromLiteral` as a self-contained env var rather than a value source. The job-side helpers (`JobEnvVar` / `JobEnvVarFromLiteral` / etc.) repeat the exact same pattern in a parallel namespace.
+
+2. **`GoogleCloudRunV2Service` exposes `nameRef` but no `locationRef`.** The IAM member binding needs both `name` and `location` to identify the target service. The plan attempted `TfArg.ref(coffeeService.locationRef)` symmetrically with `nameRef`, but no such getter exists — the surface is `nameRef`, `id`, `uri`, `generation`, `latestReadyRevision`, `latestCreatedRevision`, `uid`, `etag` (zero location-related attrs). The workaround was to re-literal `'asia-northeast1'` for the IAM member's `location` field, which works but introduces a magic-string coupling between the service declaration and the binding — change the region in one place and you need to remember to change it in the other. A consumer following a "always wire via refs" hygiene rule (which terradart's overall design encourages) would expect this getter to exist.
+
+**Proposed fix:** in v1.0 polish wave, two adjustments:
+
+- **(a)** Consider flattening the env-var helper into a single leaf type per source, e.g. `EnvLiteral(name: 'DB_INSTANCE', value: TfArg.literal('...'))` and `EnvSecret(name: 'DB_PASSWORD', secret: TfArg.ref(...), version: 'latest')`. This loses the sealed-class dispatch benefit but the Terraform schema's `exactly_one_of` constraint is already enforced at the provider level — moving it into the type system buys correctness at the cost of an unintuitive shape. If the wrapper design stays, add a doc comment on `EnvVar` (and `JobEnvVar`) explicitly calling out "this is the name carrier; pick a source from `EnvVarSource`'s sealed family" — currently the dartdoc says "Set [source] to inject a value", which doesn't telegraph the dispatch idiom.
+
+- **(b)** Add `locationRef` (and possibly `projectRef`) as input-mirror getters on `GoogleCloudRunV2Service` (and other location-scoped resources) so the binding-companion pattern stays ref-based throughout. Even though Terraform doesn't expose `location` as a read attribute on these resources, the synthesizer could generate a getter that returns a `TfRef` to the local Terraform argument (`${google_cloud_run_v2_service.<local>.location}`) since the argument is required and thus always set. Alternatively: expose the resource's required input arguments via a uniform `inputs.location` / `inputs.region` mirror so consumers always have a ref-able handle without forcing the schema to materialize the attr at read time.
+
+**Workaround used:** (a) wrote env vars in the actual `EnvVar(name: ..., source: EnvVarFrom...())` shape after reading `~/.pub-cache/hosted/pub.dev/terradart_google-0.8.0-dev/lib/src/cloud_run/google_cloud_run_v2_service.dart:484-552` directly. (b) hard-coded `TfArg.literal('asia-northeast1')` for the IAM member's `location` instead of a ref.
+
+**Tracked:** terradart#XXX (filed in Task 13).
+
 ## D1b (GCS backend)
 
 (filled in during the D1b apply cycle.)

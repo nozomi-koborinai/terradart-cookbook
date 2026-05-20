@@ -6,6 +6,7 @@ import 'dart:convert' as dart_convert;
 import 'dart:io';
 
 import 'package:terradart_core/terradart_core.dart';
+import 'package:terradart_google/cloud_run.dart';
 import 'package:terradart_google/cloud_sql.dart';
 import 'package:terradart_google/compute.dart';
 import 'package:terradart_google/iam.dart';
@@ -119,7 +120,6 @@ class CoffeeShopStack extends Stack {
       dependsOn: [ResourceDependency(psaConnection)],
     ));
 
-    // ignore: unused_local_variable
     final sqlDatabase = add(GoogleSqlDatabase(
       localName: 'coffee_db',
       name: TfArg.literal('coffee_orders'),
@@ -189,7 +189,62 @@ class CoffeeShopStack extends Stack {
       member: TfArg.ref(runSa.member),
     ));
 
-    // (Tier 5 through 6 added in subsequent tasks.)
+    // ===== Tier 5: Cloud Run v2 service ====================================
+
+    final coffeeService = add(GoogleCloudRunV2Service(
+      localName: 'coffee_service',
+      name: TfArg.literal('coffee-shop'),
+      location: TfArg.literal('asia-northeast1'),
+      ingress: TfArg.literal(Ingress.all),
+      template: Template(
+        serviceAccount: TfArg.ref(runSa.email),
+        containers: [
+          ServiceContainer(
+            image: TfArg.literal(
+              'asia-northeast1-docker.pkg.dev/google-samples/containers/hello-app:1.0',
+            ),
+            env: [
+              EnvVar(
+                name: 'DB_INSTANCE',
+                source: EnvVarFromLiteral(
+                  TfArg.ref(sqlInstance.connectionName),
+                ),
+              ),
+              EnvVar(
+                name: 'DB_NAME',
+                source: EnvVarFromLiteral(
+                  TfArg.ref(sqlDatabase.nameRef),
+                ),
+              ),
+              EnvVar(
+                name: 'DB_USER',
+                source: EnvVarFromLiteral(TfArg.literal('coffee_app')),
+              ),
+              EnvVar(
+                name: 'DB_PASSWORD',
+                source: EnvVarFromSecret(
+                  secret: TfArg.ref(dbPasswordSecret.id),
+                  version: TfArg.literal('latest'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    ));
+
+    // ignore: unused_local_variable
+    final coffeeServiceInvoker = add(GoogleCloudRunV2ServiceIamMember(
+      localName: 'coffee_invoker',
+      name: TfArg.ref(coffeeService.nameRef),
+      location: TfArg.literal('asia-northeast1'),
+      role: TfArg.literal('roles/run.invoker'),
+      // allUsers = public webhook. Acceptable for dogfood smoke; harden in
+      // production by replacing with the upstream Pub/Sub push SA or similar.
+      member: TfArg.literal('allUsers'),
+    ));
+
+    // (Tier 6 added in the next task.)
   }
 
   @override
