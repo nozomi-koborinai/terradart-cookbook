@@ -9,10 +9,14 @@ environment:
   sdk: ^3.6.0
 
 dependencies:
+  # Path override pinned to terradart's `v0.9.0-polish-wave` branch checkout
+  # (the main terradart repo on this machine must have the polish-wave branch
+  # checked out for `dart pub get` to succeed). Switch to hosted `^0.9.0`
+  # once v0.9.0 publishes on pub.dev.
   terradart_core:
-    path: ../../../terradart/.claude/worktrees/v100-plan4-release-readiness/packages/terradart_core
+    path: ../../../terradart/packages/terradart_core
   terradart_google:
-    path: ../../../terradart/.claude/worktrees/v100-plan4-release-readiness/packages/terradart_google
+    path: ../../../terradart/packages/terradart_google
 
 dev_dependencies:
   lints: ^6.0.0

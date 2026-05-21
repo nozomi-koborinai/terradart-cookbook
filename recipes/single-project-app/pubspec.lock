@@ -20,16 +20,16 @@ packages:
   terradart_core:
     dependency: "direct main"
     description:
-      path: "../../../terradart/.claude/worktrees/v100-plan4-release-readiness/packages/terradart_core"
+      path: "../../../terradart/packages/terradart_core"
       relative: true
     source: path
-    version: "1.0.0"
+    version: "0.9.0"
   terradart_google:
     dependency: "direct main"
     description:
-      path: "../../../terradart/.claude/worktrees/v100-plan4-release-readiness/packages/terradart_google"
+      path: "../../../terradart/packages/terradart_google"
       relative: true
     source: path
-    version: "1.0.0"
+    version: "0.9.0"
 sdks:
   dart: ">=3.8.0 <4.0.0"
