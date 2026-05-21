@@ -1,6 +1,6 @@
 > Part of [terradart-cookbook](../../README.md). Library: [terradart](https://github.com/nozomi-koborinai/terradart).
 >
-> **Status (2026-05-20):** Validated end-to-end. Stack applied successfully (24 resources), Pub/Sub → Cloud Run delivery confirmed, uptime check + alert policy registered, state migrated from local backend → GCS backend. See [FRICTIONS.md](./FRICTIONS.md) for findings.
+> **Status (2026-05-21):** Validated end-to-end on v0.8.0-dev; migrated to terradart v1.0.0 surface on branch `migrate/v1.0`. Stack applied successfully (24 resources), Pub/Sub → Cloud Run delivery confirmed, uptime check + alert policy registered, state migrated from local backend → GCS backend. See [FRICTIONS.md](./FRICTIONS.md) for findings — frictions #52-#57 are resolved in v1.0.0.
 
 # single-project-app
 
@@ -46,7 +46,7 @@ This recipe provisions billable resources. Rough estimates if left running 24h i
 
 ## Run
 
-Prerequisites: `gcloud auth application-default login` for an account with Owner on the target project. Terraform 1.11+ (terradart synth currently hardcodes `required_version: ">= 1.11.0"`; see [FRICTIONS.md](./FRICTIONS.md)).
+Prerequisites: `gcloud auth application-default login` for an account with Owner on the target project. Terraform 1.11+ (terradart v1.0.0 synth hardcodes `required_version: ">= 1.11.0"` — required for write-only attribute support).
 
 ```bash
 export GCP_PROJECT_ID=terradart-validate
@@ -87,6 +87,18 @@ terraform destroy -auto-approve
 ```
 
 See [FRICTIONS.md](./FRICTIONS.md) for the full context. This is a GCP / Terraform google provider behavior, not a terradart bug.
+
+## v1.0 patterns
+
+This recipe uses the terradart v1.0.0 API surface. Key changes from v0.8.0-dev:
+
+- **`LocalBackend`** — `Stack(backend: const LocalBackend())` emits `terraform.backend.local: {}` in `main.tf.json`. The handwritten `tf-out/terraform.tf` is gone.
+- **`devMode: true`** — `Stack(devMode: true)` flips `deletion_protection: false` on Cloud Run, Cloud SQL, and Secret Manager at synth time. No more per-resource `deletionProtection: TfArg.literal(false)` calls in sample code.
+- **Concrete `synth()`** — `Stack.synth()` is now a concrete default that writes `tf-out/main.tf.json`. The `@override synth(...)` boilerplate and `dart:convert` import are gone from the Stack subclass.
+- **`TfArg.variable('name')`** — route secrets through Terraform variable blocks (`${var.db_password}`) instead of masking workarounds.
+- **`.iamMember` getter** — `GoogleServiceAccount.iamMember` (was `.member`) is self-documenting at IAM binding call sites.
+- **Service-prefixed helper classes** — `SqlDatabaseInstanceSettings`, `SqlDatabaseInstanceIpConfiguration`, `SecretManagerSecretReplication`, `CloudRunV2ServiceTemplate`, `CloudRunV2ServiceServiceContainer`, `CloudRunV2ServiceEnvVar`, `PubsubSubscriptionPushConfig`, `MonitoringUptimeCheckConfigMonitoredResource`, `MonitoringAlertPolicyAlertCondition`, etc. Prevents name collisions when importing multiple barrels.
+- **Enum name polish** — `Comparison.lessThan` (was `.lt`), `Aligner.alignNextOlder` (was `.nextOlder`).
 
 ## D1b — GCS backend
 

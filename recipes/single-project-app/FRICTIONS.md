@@ -1,6 +1,8 @@
 # Friction log
 
-Findings from dogfooding terradart against the coffee-shop recipe. Each entry is a candidate for the v1.0 polish wave (sub-project A of the v1.0 design).
+Findings from dogfooding terradart against the coffee-shop recipe. Each entry was a candidate for the v1.0 polish wave (sub-project A of the v1.0 design).
+
+**v1.0 status:** Issues terradart#52-#57 are resolved in terradart v1.0.0 (link TBD post-tag). This recipe has been migrated to the v1.0 surface on branch `migrate/v1.0`.
 
 ## Entry template
 
@@ -28,7 +30,7 @@ A subtler observation: terradart doesn't help the user discover this dependency.
 
 **Proposed fix:** in v1.0 polish wave, ship a curated "API enablement helper": `Apis.required(barrels: [compute, service_networking, cloud_sql, ...])` that emits the necessary `google_project_service` set based on which terradart barrels the Stack imports / uses. This would prevent recipe authors from misconfiguring Tier 1.
 
-**Tracked:** terradart#57.
+**Tracked:** terradart#57. **Status:** Resolved in terradart v1.0.0 (link TBD post-tag).
 
 ### Backend block requires handwritten terraform.tf
 
@@ -38,7 +40,7 @@ A subtler observation: terradart doesn't help the user discover this dependency.
 
 **Proposed fix:** add `LocalBackend` to `terradart_core` in sub-project A (lives next to existing `GcsBackend` in `src/backends.dart`); export from `terradart_core.dart`. Then `stack.setBackend(const LocalBackend())` would emit `terraform.backend.local: {}` in `main.tf.json` and the handwritten file disappears.
 
-**Tracked:** terradart#52.
+**Tracked:** terradart#52. **Status:** Resolved in terradart v1.0.0 (link TBD post-tag).
 
 ### `Stack.synth` is abstract — every quickstart re-implements file-write boilerplate
 
@@ -48,7 +50,7 @@ A subtler observation: terradart doesn't help the user discover this dependency.
 
 **Proposed fix:** provide a concrete default `synth` on `Stack` that writes `main.tf.json` (and the `*.app.dart` constants file when present) under `outDir`. Subclasses can still override for custom side effects, but the 80% case becomes a no-boilerplate call. Rename the internal `JsonEncoder` export to `TfJsonEncoder` to avoid shadowing `dart:convert`.
 
-**Tracked:** terradart#56.
+**Tracked:** terradart#56. **Status:** Resolved in terradart v1.0.0 (link TBD post-tag).
 
 ### Synth emits `terraform.required_version` & `required_providers`, duplicating handwritten `terraform.tf`
 
@@ -58,7 +60,7 @@ A subtler observation: terradart doesn't help the user discover this dependency.
 
 **Proposed fix:** if a `LocalBackend` abstraction lands (see first entry above), the handwritten `terraform.tf` disappears entirely and this becomes moot. Until then, document in the cookbook README that `terraform.tf`'s `required_version` is overridden by the synth-emitted `>= 1.11.0` value (or let users override via `stack.setRequiredVersion(...)`).
 
-**Tracked:** terradart#52.
+**Tracked:** terradart#52. **Status:** Resolved in terradart v1.0.0 (link TBD post-tag).
 
 ### terradart hardcodes `required_version: ">= 1.11.0"`; older terraform users hard-blocked
 
@@ -72,7 +74,7 @@ terraform 1.11 was released 2025-02; it's reasonable to require recent versions,
 
 **Workaround for D1a:** `brew upgrade hashicorp/tap/terraform` to get >= 1.11. Cookbook README updated to say "Terraform 1.11+" until v1.0 polish lands.
 
-**Tracked:** terradart#52 (rolled in alongside the broader `terraform.tf` elimination workstream).
+**Tracked:** terradart#52 (rolled in alongside the broader `terraform.tf` elimination workstream). **Status:** Resolved in terradart v1.0.0 (link TBD post-tag).
 
 ### `google_project_service` "created" signal lags actual API usability by 30-60s
 
@@ -86,7 +88,7 @@ This is a well-known Terraform / google provider issue but it surfaces sharply i
 
 **Workaround used:** re-run `terraform apply` — Terraform's `google_compute_network` errored cleanly, no partial state.
 
-**Tracked:** terradart#57.
+**Tracked:** terradart#57. **Status:** Resolved in terradart v1.0.0 (link TBD post-tag).
 
 ### Tier 3 API surface deviates from plan-author guesses — naming conventions worth a doc pass
 
@@ -107,7 +109,7 @@ A related sub-observation: `GoogleSecretManagerSecretVersion.secretData` is `@De
 
 **Workaround used:** consulted `~/.pub-cache/hosted/pub.dev/terradart_google-0.8.0-dev/lib/src/sql/` directly to discover the actual exports before writing call sites. Sensitive masking confirmed working: at synth time both `google_sql_user.password` and `google_secret_manager_secret_version.secret_data` are emitted as `""` in `main.tf.json` (verified via `jq` against `tf-out/main.tf.json`), so the literal `dbPassword` value does NOT leak into the synth output.
 
-**Tracked:** terradart#55.
+**Tracked:** terradart#55. **Status:** Resolved in terradart v1.0.0 (link TBD post-tag).
 
 ### CRITICAL — synth-time sensitive masking destroys apply for write-once secret fields
 
@@ -121,7 +123,7 @@ Worse: the `Variable` / consumer-supplied interpolation API doesn't exist in v0.
 
 **Proposed fix:** in v1.0 polish wave, two-part: (a) add `TfArg.variable(name)` (or equivalent) to `terradart_core` so consumers can route secrets through handwritten `variable` blocks when the resource's write-only API isn't ergonomic enough; (b) emit a clear synth-time diagnostic when a literal targets a masked field with no `_wo` alternative present — currently the masking is silent and the failure mode only surfaces at `terraform apply`. The `@Deprecated` annotation on `secretData` already nudges users toward `secretDataWo`; doing the same for `google_sql_user.password` would close the gap.
 
-**Tracked:** terradart#53.
+**Tracked:** terradart#53. **Status:** Resolved in terradart v1.0.0 (link TBD post-tag).
 
 ### Duplicate `required_providers` between synth output and handwritten terraform.tf hard-blocks init
 
@@ -133,7 +135,7 @@ This is the same root cause as the "Backend abstraction missing" friction, but t
 
 **Proposed fix:** same as Backend abstraction (v1.0 A.1): if `Stack.backend` is set, synth emits the full `terraform { ... }` block including backend; user never authors `terraform.tf`. Alternatively (transitional): synth could detect a sibling `terraform.tf` and skip emitting `required_*` fields when present, but this is fragile.
 
-**Tracked:** terradart#52.
+**Tracked:** terradart#52. **Status:** Resolved in terradart v1.0.0 (link TBD post-tag).
 
 ### Tier 4 — `GoogleServiceAccount` IAM-binding getter name is unguessable
 
@@ -145,7 +147,7 @@ This is the same root cause as the "Backend abstraction missing" friction, but t
 
 **Workaround used:** consulted `~/.pub-cache/hosted/pub.dev/terradart_google-0.8.0-dev/lib/src/iam/google_service_account.dart` to discover the actual getter name before writing call sites.
 
-**Tracked:** terradart#55.
+**Tracked:** terradart#55. **Status:** Resolved in terradart v1.0.0 (link TBD post-tag).
 
 ### Tier 5 — Cloud Run v2 env-var helper shape diverges from natural guess; `locationRef` getter missing
 
@@ -165,7 +167,7 @@ This is the same root cause as the "Backend abstraction missing" friction, but t
 
 **Workaround used:** (a) wrote env vars in the actual `EnvVar(name: ..., source: EnvVarFrom...())` shape after reading `~/.pub-cache/hosted/pub.dev/terradart_google-0.8.0-dev/lib/src/cloud_run/google_cloud_run_v2_service.dart:484-552` directly. (b) hard-coded `TfArg.literal('asia-northeast1')` for the IAM member's `location` instead of a ref.
 
-**Tracked:** terradart#55.
+**Tracked:** terradart#55. **Status:** Resolved in terradart v1.0.0 (link TBD post-tag).
 
 ### Tier 6 — Monitoring nested-block helpers are inconsistent about `TfArg` wrapping; enum names diverge from plan author guesses
 
@@ -191,7 +193,7 @@ This is the same root cause as the "Backend abstraction missing" friction, but t
 
 **Workaround used:** read `~/.pub-cache/hosted/pub.dev/terradart_google-0.8.0-dev/lib/src/monitoring/google_monitoring_alert_policy.dart` and `google_monitoring_uptime_check_config.dart` directly; adapted call sites to match the actual API (bare enums where required, plain Dart types where required, `.id` for the topic reference). Synth output verified end-to-end via `jq` against `tf-out/main.tf.json` — all 5 Tier 6 resources emit valid Terraform JSON.
 
-**Tracked:** terradart#55.
+**Tracked:** terradart#55. **Status:** Resolved in terradart v1.0.0 (link TBD post-tag).
 
 ### Cloud Run container image choice matters for IAM: only `cloudrun/container/hello` works without explicit grants
 
@@ -217,7 +219,7 @@ To unblock destroy, the dev had to (a) add `deletionProtection: TfArg.literal(fa
 
 **Proposed fix:** terradart's docs / quickstarts should consistently flag "sample / dogfood code should explicitly set `deletionProtection: false` on every resource that has the field" — Cloud Run v2, Cloud SQL, Secret Manager (when supported), GCS bucket, BigQuery dataset, etc. Optionally: add a `Stack.devMode` or `Stack.deletionProtectionDefault` flag that recipe authors flip once instead of repeating per resource.
 
-**Tracked:** terradart#54.
+**Tracked:** terradart#54. **Status:** Resolved in terradart v1.0.0 (link TBD post-tag).
 
 ### Cloud SQL producer-side peering lingers after instance destroy; service_networking_connection blocks destroy chain
 

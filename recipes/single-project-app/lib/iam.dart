@@ -20,19 +20,19 @@ List<GoogleProjectIamMember> buildProjectIamBindings({
         localName: 'run_sa_sql_client',
         project: TfArg.literal(projectId),
         role: TfArg.literal('roles/cloudsql.client'),
-        member: TfArg.ref(runSa.member),
+        member: TfArg.ref(runSa.iamMember),
       ),
       GoogleProjectIamMember(
         localName: 'run_sa_log_writer',
         project: TfArg.literal(projectId),
         role: TfArg.literal('roles/logging.logWriter'),
-        member: TfArg.ref(runSa.member),
+        member: TfArg.ref(runSa.iamMember),
       ),
       GoogleProjectIamMember(
         localName: 'run_sa_monitoring_writer',
         project: TfArg.literal(projectId),
         role: TfArg.literal('roles/monitoring.metricWriter'),
-        member: TfArg.ref(runSa.member),
+        member: TfArg.ref(runSa.iamMember),
       ),
     ];
 
@@ -44,5 +44,5 @@ GoogleSecretManagerSecretIamMember buildSecretIamMember(
       localName: 'db_password_access',
       secretId: TfArg.ref(dbPasswordSecret.id),
       role: TfArg.literal('roles/secretmanager.secretAccessor'),
-      member: TfArg.ref(runSa.member),
+      member: TfArg.ref(runSa.iamMember),
     );

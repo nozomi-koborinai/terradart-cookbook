@@ -9,8 +9,10 @@ environment:
   sdk: ^3.6.0
 
 dependencies:
-  terradart_core: ^0.8.0-dev
-  terradart_google: ^0.8.0-dev
+  terradart_core:
+    path: ../../../terradart/.claude/worktrees/v100-plan4-release-readiness/packages/terradart_core
+  terradart_google:
+    path: ../../../terradart/.claude/worktrees/v100-plan4-release-readiness/packages/terradart_google
 
 dev_dependencies:
   lints: ^6.0.0

@@ -10,9 +10,6 @@
 /// `Stack.add(...)`, so the whole composition is visible at a glance.
 library;
 
-import 'dart:convert' as dart_convert;
-import 'dart:io';
-
 import 'package:terradart_core/terradart_core.dart';
 import 'package:terradart_google/provider.dart';
 
@@ -32,6 +29,8 @@ class SingleProjectAppStack extends Stack {
           providers: [
             GoogleProvider(project: projectId, region: 'asia-northeast1'),
           ],
+          backend: const LocalBackend(),
+          devMode: true,
         ) {
     // ===== Tier 1 — API enablement (8 services) ===========================
     for (final api in buildProjectServices()) {
@@ -87,14 +86,4 @@ class SingleProjectAppStack extends Stack {
   final String projectId;
   final String dbPassword;
   final String alertEmail;
-
-  @override
-  Future<void> synth({required String outDir}) async {
-    final result = StackSynth.synth(this);
-    await Directory(outDir).create(recursive: true);
-    final tfFile = File('$outDir/main.tf.json');
-    await tfFile.writeAsString(
-      const dart_convert.JsonEncoder.withIndent('  ').convert(result.tfJson),
-    );
-  }
 }

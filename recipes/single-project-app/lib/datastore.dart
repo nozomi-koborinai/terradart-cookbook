@@ -17,9 +17,9 @@ GoogleSqlDatabaseInstance buildSqlInstance({
       databaseVersion: TfArg.literal(DatabaseVersion.postgres15),
       region: TfArg.literal('asia-northeast1'),
       deletionProtection: TfArg.literal(false),
-      settings: Settings(
+      settings: SqlDatabaseInstanceSettings(
         tier: TfArg.literal('db-f1-micro'),
-        ipConfiguration: IpConfiguration(
+        ipConfiguration: SqlDatabaseInstanceIpConfiguration(
           ipv4Enabled: TfArg.literal(false),
           privateNetwork: TfArg.ref(vpc.selfLink),
         ),
@@ -50,7 +50,7 @@ GoogleSqlUser buildSqlUser(
 GoogleSecretManagerSecret buildDbPasswordSecret() => GoogleSecretManagerSecret(
       localName: 'db_password',
       secretId: TfArg.literal('coffee-shop-db-password'),
-      replication: Replication.auto(),
+      replication: SecretManagerSecretReplication.auto(),
     );
 
 GoogleSecretManagerSecretVersion buildDbPasswordSecretVersion(

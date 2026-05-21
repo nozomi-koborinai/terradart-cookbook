@@ -20,18 +20,16 @@ packages:
   terradart_core:
     dependency: "direct main"
     description:
-      name: terradart_core
-      sha256: d501a227af5cd8049a8fd0cd00a9e036c6dbe44711c7ad309406428057f41201
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.8.0-dev"
+      path: "../../../terradart/.claude/worktrees/v100-plan4-release-readiness/packages/terradart_core"
+      relative: true
+    source: path
+    version: "1.0.0"
   terradart_google:
     dependency: "direct main"
     description:
-      name: terradart_google
-      sha256: cb26469fbc19ee6a8a73e4960bd2b4d426ef671d7ef93455fa96d8ae8102482b
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.8.0-dev"
+      path: "../../../terradart/.claude/worktrees/v100-plan4-release-readiness/packages/terradart_google"
+      relative: true
+    source: path
+    version: "1.0.0"
 sdks:
   dart: ">=3.8.0 <4.0.0"

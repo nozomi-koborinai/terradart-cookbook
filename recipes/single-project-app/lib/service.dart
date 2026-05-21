@@ -19,33 +19,35 @@ GoogleCloudRunV2Service buildCloudRunService({
       location: TfArg.literal('asia-northeast1'),
       ingress: TfArg.literal(Ingress.all),
       deletionProtection: TfArg.literal(false),
-      template: Template(
+      template: CloudRunV2ServiceTemplate(
         serviceAccount: TfArg.ref(runSa.email),
         containers: [
-          ServiceContainer(
+          CloudRunV2ServiceServiceContainer(
             image: TfArg.literal(
               'us-docker.pkg.dev/cloudrun/container/hello',
             ),
             env: [
-              EnvVar(
-                name: 'DB_INSTANCE',
-                source: EnvVarFromLiteral(
+              CloudRunV2ServiceEnvVar(
+                name: TfArg.literal('DB_INSTANCE'),
+                source: CloudRunV2ServiceEnvVarFromLiteral(
                   TfArg.ref(sqlInstance.connectionName),
                 ),
               ),
-              EnvVar(
-                name: 'DB_NAME',
-                source: EnvVarFromLiteral(
+              CloudRunV2ServiceEnvVar(
+                name: TfArg.literal('DB_NAME'),
+                source: CloudRunV2ServiceEnvVarFromLiteral(
                   TfArg.ref(sqlDatabase.nameRef),
                 ),
               ),
-              EnvVar(
-                name: 'DB_USER',
-                source: EnvVarFromLiteral(TfArg.literal('coffee_app')),
+              CloudRunV2ServiceEnvVar(
+                name: TfArg.literal('DB_USER'),
+                source: CloudRunV2ServiceEnvVarFromLiteral(
+                  TfArg.literal('coffee_app'),
+                ),
               ),
-              EnvVar(
-                name: 'DB_PASSWORD',
-                source: EnvVarFromSecret(
+              CloudRunV2ServiceEnvVar(
+                name: TfArg.literal('DB_PASSWORD'),
+                source: CloudRunV2ServiceEnvVarFromSecret(
                   secret: TfArg.ref(dbPasswordSecret.id),
                   version: TfArg.literal('latest'),
                 ),
