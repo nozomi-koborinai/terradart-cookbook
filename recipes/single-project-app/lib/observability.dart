@@ -29,9 +29,9 @@ GooglePubsubSubscription buildOrderSubscription({
       localName: 'orders_subscription',
       name: TfArg.literal('coffee-orders-sub'),
       topic: TfArg.ref(orderTopic.id),
-      pushConfig: PushConfig(
+      pushConfig: PubsubSubscriptionPushConfig(
         pushEndpoint: TfArg.ref(coffeeService.uri),
-        oidcToken: OidcToken(
+        oidcToken: PubsubSubscriptionOidcToken(
           serviceAccountEmail: TfArg.ref(runSa.email),
         ),
       ),
@@ -53,17 +53,17 @@ GoogleMonitoringUptimeCheckConfig buildUptimeCheck(
       displayName: TfArg.literal('Coffee Shop uptime'),
       timeout: TfArg.literal('10s'),
       period: TfArg.literal('60s'),
-      monitoredResource: MonitoringUptimeCheckMonitoredResource(
-        type: 'uptime_url',
+      monitoredResource: MonitoringUptimeCheckConfigMonitoredResource(
+        type: TfArg.literal('uptime_url'),
         labels: {
           'host':
               '\${replace(replace(google_cloud_run_v2_service.coffee_service.uri, "https://", ""), "/", "")}',
         },
       ),
-      httpCheck: const MonitoringUptimeCheckHttpCheck(
-        path: '/',
-        port: 443,
-        useSsl: true,
+      httpCheck: MonitoringUptimeCheckConfigHttpCheck(
+        path: TfArg.literal('/'),
+        port: TfArg.literal(443),
+        useSsl: TfArg.literal(true),
       ),
     );
 
@@ -75,19 +75,19 @@ GoogleMonitoringAlertPolicy buildDownAlert(
       displayName: TfArg.literal('Coffee Shop down'),
       combiner: TfArg.literal(AlertCombiner.or),
       conditions: [
-        AlertCondition(
+        MonitoringAlertPolicyAlertCondition(
           displayName: TfArg.literal('uptime check failing'),
-          conditionThreshold: ConditionThreshold(
+          conditionThreshold: MonitoringAlertPolicyConditionThreshold(
             filter: TfArg.literal(
               'metric.type="monitoring.googleapis.com/uptime_check/check_passed" AND resource.type="uptime_url" AND metric.labels.check_id="\${google_monitoring_uptime_check_config.coffee_uptime.uptime_check_id}"',
             ),
-            comparison: TfArg.literal(Comparison.lt),
+            comparison: TfArg.literal(Comparison.lessThan),
             thresholdValue: TfArg.literal(1),
             duration: TfArg.literal('60s'),
             aggregations: [
-              Aggregation(
+              MonitoringAlertPolicyAggregation(
                 alignmentPeriod: TfArg.literal('60s'),
-                perSeriesAligner: Aligner.nextOlder,
+                perSeriesAligner: Aligner.alignNextOlder,
               ),
             ],
           ),
