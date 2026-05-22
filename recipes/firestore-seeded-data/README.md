@@ -1,6 +1,6 @@
 # firestore-seeded-data
 
-> **Status (2026-05-22):** Dogfooded end-to-end against `terradart-validate` on terradart v0.10.0-dev (PR #60 merged, pub.dev publish pending). 15-resource Stack applied + 11 documents verified via REST + cleaned up. 4 frictions captured in [`FRICTIONS.md`](FRICTIONS.md) — most notable is a Terraform provider quirk where `(default)` Firestore database survives `terraform destroy`; a manual `gcloud firestore databases delete` step is currently required.
+> **Status (2026-05-22):** Dogfooded end-to-end against `terradart-validate` on terradart v0.10.0 (pub.dev). 15-resource Stack applied + 11 documents verified via REST + cleanly destroyed (incl. `(default)` database). 4 frictions captured in [`FRICTIONS.md`](FRICTIONS.md), all closed: the most notable (P1: `deletionPolicy: DELETE` needed on the database resource for `terraform destroy` to actually delete) is fixed in the recipe.
 
 A Cloud Firestore master-data seeding recipe. Demonstrates how to manage **small fixed master-data sets** (feature flags, pricing tiers, lookup tables, regional config) via IaC, with the new `GoogleFirestoreDocument` resource + `FirestoreFields.encode(Map)` helper introduced in terradart v0.10.0.
 
@@ -82,13 +82,11 @@ Alternatively, the Firebase / Firestore console: open the project, switch to Fir
 ```bash
 cd tf-out
 terraform destroy
-# Then (current workaround — see FRICTIONS.md P0):
-gcloud firestore databases delete --database='(default)' --project="$GCP_PROJECT_ID" --quiet
 ```
 
-`terraform destroy` reports success in seconds but the `(default)` Firestore database survives in GCP — a Terraform provider quirk specific to `(default)`-named Firestore databases. Documents / index / backup schedule / project service ARE cleanly destroyed by Terraform; only the database needs the manual `gcloud` step. The manual delete completes in a few seconds.
+Expected: `Destroy complete! Resources: 15 destroyed.` in a few seconds. The `(default)` database deletes in ~2s.
 
-See [`FRICTIONS.md`](FRICTIONS.md) §P0 for details. Drop this workaround once the upstream provider issue is fixed.
+The recipe sets `deletionPolicy: TfArg.literal('DELETE')` on the database resource — without it, the provider's documented default (`ABANDON`) leaves the database in place on destroy. See [`FRICTIONS.md`](FRICTIONS.md) §P1.
 
 ## Recovery: `(default)` database already exists
 

@@ -2,9 +2,9 @@
 
 Findings from dogfooding the recipe against `terradart-validate` GCP project.
 
-Cycle 1: **2026-05-22 — initial validation against terradart v0.10.0-dev** (PR #60 merged at 6a70623). Apply → smoke → destroy against `terradart-validate`. Path-overridden to terradart's main checkout.
+Cycle 1: **2026-05-22 — initial validation against terradart v0.10.0** published to pub.dev. Apply → smoke → destroy against `terradart-validate`. Followed by a second dogfood cycle the same day after discovering a P1 recipe-correctness omission (see below).
 
-Summary: **4 frictions found**. P0 destroy bug is the most significant — Terraform reports the `(default)` database as destroyed but the resource survives in GCP. Other frictions are documentation / plan accuracy issues.
+Summary: **4 frictions found**. The originally-reported "P0 provider destroy bug" was reclassified to P1 (recipe correctness): the recipe was missing `deletionPolicy: TfArg.literal('DELETE')` on the database resource, so the provider's documented default (`ABANDON`) left the `(default)` database in place on `terraform destroy`. The fix is in the same PR as this update; the second dogfood cycle confirmed destroy now deletes the database in ~2s.
 
 ---
 
@@ -19,15 +19,19 @@ Each entry follows the cookbook template:
 
 ---
 
-## P0 — `terraform destroy` reports success but `(default)` database survives in GCP
+## P1 — recipe omitted `deletionPolicy: TfArg.literal('DELETE')`; provider default `ABANDON` leaves DB on destroy
 
-- **Context**: After successful `terraform apply` (15 resources), ran `terraform destroy -auto-approve` from `tf-out/`. The destroy completed in seconds with `Destroy complete! Resources: 15 destroyed.`
-- **Friction**: The `google_firestore_database.default` resource line reported `Destruction complete after 0s`, but `gcloud firestore databases list --project=terradart-validate` STILL showed the `(default)` database afterwards. Tested with the `deletion_policy = "DELETE"` (Terraform's default) and `delete_protection_state = DELETE_PROTECTION_DISABLED` (set by our Stack). Both are in place — destroy is silent-no-op on GCP. Manual `gcloud firestore databases delete --database='(default)' --project=terradart-validate --quiet` succeeded immediately and cleanly. So GCP does support deletion via API; the Terraform provider is just not invoking it. Smells like a `hashicorp/google` provider issue with `(default)` databases specifically (the special `(default)` name may take a different code path).
+- **Context**: First dogfood cycle's `terraform destroy` reported success (`Destroy complete! Resources: 15 destroyed.`) but `gcloud firestore databases list --project=terradart-validate` showed `(default)` still alive. Initial hypothesis was an upstream `hashicorp/google` provider bug.
+- **Friction**: The Cycle-1 Stack did not pass `deletionPolicy` to `GoogleFirestoreDatabase(...)`, so the field was omitted from synth output and the provider applied its documented schema default. Per `schema.json`:
+  > "If the deletion policy is 'ABANDON', the database will be removed from Terraform state but not deleted from Google Cloud upon destruction. ... **The default value is 'ABANDON'**."
+
+  `ABANDON` behavior is deliberate — Firestore databases are expensive to recreate, so the safe default is to leave them in place. But for an IaC recipe where the entire stack is intentionally throwaway (cookbook dogfood / dev / staging spin-up), `DELETE` is the right policy. The recipe should have set it explicitly.
 - **Proposed fix**:
-  1. **Immediate**: document the manual `gcloud firestore databases delete` step in this recipe's README destroy section, marked as a current workaround. Cookbook readers should not be surprised when destroy "succeeds" but their GCP project still bills for an unused database.
-  2. **Upstream**: file an issue on [hashicorp/terraform-provider-google](https://github.com/hashicorp/terraform-provider-google/issues) — minimal repro = 1 `google_firestore_database` with `delete_protection_state = DELETE_PROTECTION_DISABLED` + `deletion_policy = "DELETE"`, apply, destroy, observe `gcloud firestore databases list` still has it.
-  3. **Long-term**: when the upstream fix lands, drop the recipe README's manual cleanup note.
-- **Tracked**: `none` (upstream issue filing pending).
+  1. **Recipe** (fixed in this PR): add `deletionPolicy: TfArg.literal('DELETE')` to the `GoogleFirestoreDatabase(...)` call in `lib/main.dart`, with an inline comment explaining the default-behavior gotcha.
+  2. **Verification** (this PR): second dogfood cycle 2026-05-22 — `terraform destroy` cleanly removed the `(default)` database in ~2s. `gcloud firestore databases list` returned empty afterwards. No manual `gcloud` workaround needed.
+  3. **Documentation**: the README destroy section is rewritten to drop the manual `gcloud` workaround.
+  4. **Upstream issue filing**: not needed — the provider behavior is documented and intentional.
+- **Tracked**: closed by this PR's recipe fix.
 
 ---
 
@@ -39,25 +43,25 @@ Each entry follows the cookbook template:
   - Firebase CLI (`firebase firestore:get`) — separate tool with its own auth, OR
   - Firestore client libraries — for programmatic checks
 - **Proposed fix**: this recipe's README + the upstream `firestore_document_quickstart` README in terradart should both show the REST-API smoke pattern (it's the lowest-dependency option — gcloud is already in scope for ADC anyway). Plan templates that follow this recipe should also use the REST pattern, not the imaginary gcloud subcommand.
-- **Tracked**: `none` (doc-only change captured inline in the README update for this cycle).
+- **Tracked**: `none` (doc-only change captured inline in the README — already in this recipe's README from Cycle 1).
 
 ---
 
 ## P2 — Composite index creation takes ~6 minutes (vs documents <1s each)
 
-- **Context**: `terraform apply` for the 15-resource Stack. Most resources created in seconds; the database took 12s, then 11 documents created in parallel in ~13s each. The composite index `pricing_tiers_by_price` (2 fields: `monthly_usd ASC, label ASC`) was the long pole — `Creation complete after 5m57s`.
-- **Friction**: A first-time user reading the apply log will see "Still creating... 5m00s elapsed" and reasonably worry something is stuck. The 6-minute composite-index creation time is normal Firestore behavior (indexes provision asynchronously on a separate Firestore worker pool) but the recipe README claims "1-3 minutes" for total apply.
-- **Proposed fix**: update README's `## Run` section to set expectations: total apply 5-10 minutes dominated by the composite index. Note that documents themselves complete in seconds; the long wait is just the index. Optionally add a recipe variant with `skip_wait: true` on the index resource — Terraform returns immediately while the index continues to build in the background. That changes the post-apply state somewhat (index queries fail until the index is READY) but is appropriate for many CI-driven workflows.
-- **Tracked**: `none` (doc-only update planned for this recipe's README in this cycle).
+- **Context**: `terraform apply` for the 15-resource Stack. Most resources created in seconds; the database took 12s, then 11 documents created in parallel in ~13s each. The composite index `pricing_tiers_by_price` (2 fields: `monthly_usd ASC, label ASC`) was the long pole — Cycle 1 measured 5m57s, Cycle 2 measured 6m5s.
+- **Friction**: A first-time user reading the apply log will see "Still creating... 5m00s elapsed" and reasonably worry something is stuck. The 6-minute composite-index creation time is normal Firestore behavior (indexes provision asynchronously on a separate Firestore worker pool) but the Cycle-1 README claimed "1-3 minutes" for total apply.
+- **Proposed fix**: README updated (Cycle 1) — `## Run` section sets expectations as 5-10 minutes dominated by the composite index, with a note that documents themselves complete in seconds and that `skip_wait: true` is a knob for CI-driven workflows that don't need the index ready immediately.
+- **Tracked**: `none` (doc-only).
 
 ---
 
-## P3 — Plan's database destroy timing estimate ("1-5 minutes") was pessimistic
+## P3 — Plan B's database destroy timing estimate ("1-5 minutes") was pessimistic
 
-- **Context**: README + Plan B Task 8 warned that `google_firestore_database` destruction takes 1-5 minutes and Terraform polls until done.
-- **Friction**: Actual destroy was `Destruction complete after 0s` (which is itself a separate issue per P0 — Terraform isn't actually issuing the delete). When done manually via `gcloud firestore databases delete --database='(default)'`, the operation also completed in ~1-2 seconds. The "1-5 minutes" estimate was probably from older Firestore behavior or speculative — current GCP behavior for `(default)` Native-mode deletion is near-instant.
-- **Proposed fix**: drop the "1-5 minute" warning from the README. After P0 is fixed and Terraform actually deletes, expect <30s. Until P0 fixes, document the manual gcloud delete step.
-- **Tracked**: `none` (folded into the same README rewrite as P0).
+- **Context**: Plan B Task 8 warned that `google_firestore_database` destruction takes 1-5 minutes.
+- **Friction**: With `deletionPolicy = "DELETE"` (P1 fix), actual destruction was `Destruction complete after 2s`. Without it (Cycle 1), Terraform's "Destruction complete after 0s" was a no-op anyway. There is no scenario in current GCP behavior where `(default)` Native-mode delete takes minutes — it's near-instant either way.
+- **Proposed fix**: README destroy section (Cycle 1 + Cycle 2 rewrites) drops the "1-5 minute" estimate. Standard expectation is now <5s for the entire destroy.
+- **Tracked**: `none` (folded into the same README rewrite as P1).
 
 ---
 
@@ -70,3 +74,4 @@ These are not frictions but worth recording as positive validation of Plan A:
 - **`FirestoreReference` to non-existent target accepted silently**: as designed — the helper does not validate target existence; Firestore stores the path verbatim and lets the application decide. This is the right design for IaC-seeded master data that may reference documents created elsewhere.
 - **Composite index READY after creation**: index reached `READY` state immediately after the create operation returned (no separate polling needed in this Stack — Terraform's index resource waits for READY by default).
 - **`Stack(devMode: true)` did NOT inject `deletion_protection: false` on Firestore resources**: confirmed expected — the devMode injection only targets the 6 Plan-1 resources (Cloud Run v2 service+job, Cloud SQL, Secret Manager standard+regional, BigQuery table). Firestore database uses `delete_protection_state` (not `deletion_protection`) and the user-supplied `DeleteProtectionState.disabled` in the Stack already covered it.
+- **Clean destroy after `deletionPolicy: DELETE`** (Cycle 2): all 15 resources teardown in seconds, `(default)` database actually removed from GCP, no manual cleanup. Recipe pattern is now safe to run repeatedly in CI / dev / staging environments without leaving database stragglers.
