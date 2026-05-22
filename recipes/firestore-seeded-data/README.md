@@ -1,6 +1,6 @@
 # firestore-seeded-data
 
-> **Status (2026-05-22):** Recipe scaffolded against terradart v0.10.0-dev (PR #60 merged). End-to-end dogfood against `terradart-validate` and CHANGELOG status badge pending (Tasks 6-8 of Plan B).
+> **Status (2026-05-22):** Dogfooded end-to-end against `terradart-validate` on terradart v0.10.0-dev (PR #60 merged, pub.dev publish pending). 15-resource Stack applied + 11 documents verified via REST + cleaned up. 4 frictions captured in [`FRICTIONS.md`](FRICTIONS.md) — most notable is a Terraform provider quirk where `(default)` Firestore database survives `terraform destroy`; a manual `gcloud firestore databases delete` step is currently required.
 
 A Cloud Firestore master-data seeding recipe. Demonstrates how to manage **small fixed master-data sets** (feature flags, pricing tiers, lookup tables, regional config) via IaC, with the new `GoogleFirestoreDocument` resource + `FirestoreFields.encode(Map)` helper introduced in terradart v0.10.0.
 
@@ -47,33 +47,48 @@ terraform plan -out=tfplan
 terraform apply tfplan
 ```
 
-Expected apply duration: 1-3 minutes (the `(default)` database takes ~1-2 minutes to provision; documents create in seconds each in parallel).
+Expected apply duration: **5-10 minutes**, dominated by the composite index. Documents themselves create in seconds (Terraform fans them out in parallel — all 11 typically finish within ~15s total). The `(default)` database takes ~12s. The composite index on `pricing_tiers` is the long pole and takes 5-6 minutes to provision (Firestore index workers run asynchronously — this is normal and well-documented). If you don't need the index ready immediately (e.g. CI synth-and-validate workflows), consider adding `skip_wait: true` on the `GoogleFirestoreIndex` resource so Terraform returns as soon as the API accepts the request.
 
 ## Smoke test
 
-After apply, verify documents exist via gcloud:
+`gcloud firestore` does NOT expose document-level commands (only databases / backups / locations / operations). To verify the seeded documents, use the Firestore REST API via `curl` + an ADC access token:
 
 ```bash
-gcloud firestore documents list \
-  --database='(default)' \
-  --collection-id=feature_flags \
-  --project="$GCP_PROJECT_ID"
+TOKEN=$(gcloud auth application-default print-access-token)
+for col in feature_flags pricing_tiers i18n regions; do
+  count=$(curl -s -H "Authorization: Bearer $TOKEN" \
+    "https://firestore.googleapis.com/v1/projects/$GCP_PROJECT_ID/databases/(default)/documents/$col" \
+    | python3 -c "import json,sys; print(len(json.load(sys.stdin).get('documents',[])))")
+  echo "$col: $count"
+done
 ```
 
-Expected: 3 documents (`dark_mode`, `new_checkout`, `beta_invites`).
+Expected counts: `feature_flags: 3`, `pricing_tiers: 3`, `i18n: 3`, `regions: 2`.
 
-Or via the Firebase / Firestore console: open the project, switch to Firestore Data, confirm the 4 collections with their documents and field types (e.g., `enabled` is `boolean`, `rollout_pct` is `number`, `office_location` is `geopoint`).
+To inspect a specific document's encoded field types:
+
+```bash
+curl -s -H "Authorization: Bearer $TOKEN" \
+  "https://firestore.googleapis.com/v1/projects/$GCP_PROJECT_ID/databases/(default)/documents/feature_flags/dark_mode" \
+  | python3 -m json.tool
+```
+
+Expect `enabled.booleanValue: true`, `rollout_pct.integerValue: "100"` (string-encoded for 64-bit precision), and `last_updated.timestampValue: "2026-05-22T00:00:00Z"`.
+
+Alternatively, the Firebase / Firestore console: open the project, switch to Firestore Data, confirm the 4 collections with their documents and field types (`enabled` is `boolean`, `rollout_pct` is `number`, `office_location` is `geopoint`).
 
 ## Destroy
 
 ```bash
 cd tf-out
 terraform destroy
+# Then (current workaround — see FRICTIONS.md P0):
+gcloud firestore databases delete --database='(default)' --project="$GCP_PROJECT_ID" --quiet
 ```
 
-**Caveat**: `(default)` database deletion takes **1-5 minutes**. Terraform polls until the deletion completes. If `terraform destroy` appears to hang, it's almost certainly the database resource transitioning through the `DELETING` state — not stuck.
+`terraform destroy` reports success in seconds but the `(default)` Firestore database survives in GCP — a Terraform provider quirk specific to `(default)`-named Firestore databases. Documents / index / backup schedule / project service ARE cleanly destroyed by Terraform; only the database needs the manual `gcloud` step. The manual delete completes in a few seconds.
 
-If `terraform destroy` fails partway through, the recovery is to manually delete remaining resources via `gcloud` and re-run.
+See [`FRICTIONS.md`](FRICTIONS.md) §P0 for details. Drop this workaround once the upstream provider issue is fixed.
 
 ## Recovery: `(default)` database already exists
 
