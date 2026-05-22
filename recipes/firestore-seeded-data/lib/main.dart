@@ -41,6 +41,10 @@ class FirestoreSeededDataStack extends Stack {
         locationId: TfArg.literal('asia-northeast1'),
         type: TfArg.literal(FirestoreDatabaseType.firestoreNative),
         deleteProtectionState: TfArg.literal(DeleteProtectionState.disabled),
+        // Without this, the provider default (`ABANDON`) leaves the
+        // database in place on `terraform destroy` — Terraform reports
+        // success but the resource survives in GCP. See FRICTIONS.md §P1.
+        deletionPolicy: TfArg.literal('DELETE'),
         dependsOn: [ResourceDependency(apiFirestore)],
       ),
     );
