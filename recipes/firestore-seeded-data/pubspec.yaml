@@ -1,0 +1,19 @@
+name: firestore_seeded_data
+description: terradart cookbook recipe — seed 11 Firestore master-data documents (feature flags, pricing tiers, lookup tables, regions) into the default Native-mode database. Demonstrates GoogleFirestoreDocument + FirestoreFields helper.
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ^3.6.0
+
+dependencies:
+  # Path override pinned to terradart's main (post-PR-60 merge, includes
+  # v0.10.0-dev). Switch to hosted `^0.10.0` once v0.10.0 publishes on
+  # pub.dev (final commit before opening the cookbook PR).
+  terradart_core:
+    path: ../../../terradart/packages/terradart_core
+  terradart_google:
+    path: ../../../terradart/packages/terradart_google
+
+dev_dependencies:
+  lints: ^6.0.0
