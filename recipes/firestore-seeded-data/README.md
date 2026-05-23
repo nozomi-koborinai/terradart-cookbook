@@ -1,6 +1,6 @@
 # firestore-seeded-data
 
-> **Status (2026-05-22):** Dogfooded end-to-end against `terradart-validate` on terradart v0.10.0 (pub.dev). 15-resource Stack applied + 11 documents verified via REST + cleanly destroyed (incl. `(default)` database). 4 frictions captured in [`FRICTIONS.md`](FRICTIONS.md), all closed: the most notable (P1: `deletionPolicy: DELETE` needed on the database resource for `terraform destroy` to actually delete) is fixed in the recipe.
+> **Status:** Verified on terradart v0.11.0. 15-resource Stack (default Firestore database + 11 documents across 4 collections + composite index + daily backup schedule). See [FRICTIONS.md](FRICTIONS.md) for dogfood findings.
 
 A Cloud Firestore master-data seeding recipe. Demonstrates how to manage **small fixed master-data sets** (feature flags, pricing tiers, lookup tables, regional config) via IaC, with the new `GoogleFirestoreDocument` resource + `FirestoreFields.encode(Map)` helper introduced in terradart v0.10.0.
 

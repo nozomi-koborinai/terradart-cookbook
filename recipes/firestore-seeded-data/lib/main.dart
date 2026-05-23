@@ -5,7 +5,7 @@ import 'package:terradart_google/firestore.dart';
 import 'package:terradart_google/project.dart';
 import 'package:terradart_google/provider.dart';
 
-/// Stack demonstrating Firestore master-data seeding via terradart v0.10.0.
+/// Stack demonstrating Firestore master-data seeding via terradart v0.11.0.
 ///
 /// Resources (~15):
 ///   - 1 google_project_service (firestore.googleapis.com)
@@ -17,7 +17,7 @@ import 'package:terradart_google/provider.dart';
 ///       regions/{us, jp}
 ///   - 1 google_firestore_index (pricing_tiers: monthly_usd ASC, label ASC)
 ///   - 1 google_firestore_backup_schedule (daily, 7-day retention)
-class FirestoreSeededDataStack extends Stack {
+final class FirestoreSeededDataStack extends Stack {
   FirestoreSeededDataStack({required String projectId})
       : super(
           providers: [

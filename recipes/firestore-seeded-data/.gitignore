@@ -1,6 +1,5 @@
 .dart_tool/
 .packages
-pubspec.lock
 tf-out/
 .terraform/
 .terraform.lock.hcl

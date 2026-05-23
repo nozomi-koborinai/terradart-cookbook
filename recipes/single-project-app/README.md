@@ -1,6 +1,6 @@
 > Part of [terradart-cookbook](../../README.md). Library: [terradart](https://github.com/nozomi-koborinai/terradart).
 >
-> **Status (2026-05-21):** Validated end-to-end on v0.8.0-dev; migrated to terradart v0.9.0 surface on branch `migrate/v0.9`. Stack applied successfully (24 resources), Pub/Sub → Cloud Run delivery confirmed, uptime check + alert policy registered, state migrated from local backend → GCS backend. See [FRICTIONS.md](./FRICTIONS.md) for findings — frictions #52-#57 are resolved in v0.9.0.
+> **Status:** Verified on terradart v0.11.0. See [FRICTIONS.md](./FRICTIONS.md) for dogfood findings.
 
 # single-project-app
 

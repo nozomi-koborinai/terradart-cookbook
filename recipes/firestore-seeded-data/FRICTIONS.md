@@ -75,3 +75,7 @@ These are not frictions but worth recording as positive validation of Plan A:
 - **Composite index READY after creation**: index reached `READY` state immediately after the create operation returned (no separate polling needed in this Stack — Terraform's index resource waits for READY by default).
 - **`Stack(devMode: true)` did NOT inject `deletion_protection: false` on Firestore resources**: confirmed expected — the devMode injection only targets the 6 Plan-1 resources (Cloud Run v2 service+job, Cloud SQL, Secret Manager standard+regional, BigQuery table). Firestore database uses `delete_protection_state` (not `deletion_protection`) and the user-supplied `DeleteProtectionState.disabled` in the Stack already covered it.
 - **Clean destroy after `deletionPolicy: DELETE`** (Cycle 2): all 15 resources teardown in seconds, `(default)` database actually removed from GCP, no manual cleanup. Recipe pattern is now safe to run repeatedly in CI / dev / staging environments without leaving database stragglers.
+
+---
+
+Cycle 3: **v0.11.0 surface dogfood**. Fresh-state apply → 15 added (composite index dominated, 6m4s — matches Cycle 1 timing). REST smoke reconfirmed all 11 documents with correct typed encodings (`integerValue` / `booleanValue` / `timestampValue`). Destroy clean in seconds, `(default)` database removed in 2s. No new frictions; the Cycle 2 `deletionPolicy: DELETE` fix carries through.
