@@ -26,6 +26,6 @@ Future<void> main() async {
     dbPassword: dbPassword,
     alertEmail: alertEmail,
   );
-  await stack.synth(outDir: 'tf-out');
+  await stack.writeTo('tf-out');
   print('synthesized to tf-out/main.tf.json');
 }

@@ -20,7 +20,7 @@ import 'network.dart';
 import 'observability.dart';
 import 'service.dart';
 
-class SingleProjectAppStack extends Stack {
+final class SingleProjectAppStack extends Stack {
   SingleProjectAppStack({
     required this.projectId,
     required this.dbPassword,
