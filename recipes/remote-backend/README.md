@@ -1,6 +1,6 @@
 > Part of [terradart-cookbook](../../README.md). Library: [terradart](https://github.com/nozomi-koborinai/terradart).
 >
-> **Status (2026-05-20):** Validated end-to-end. State bucket created (Stage 0), recipe's own state + `single-project-app`'s 24-resource state both migrated to GCS backend, `terraform plan` returns "No changes." on the migrated state.
+> **Status:** Verified on terradart v0.11.0. Stage 0 bucket apply + destroy cycle confirmed end-to-end via the synth-emitted local backend. See [FRICTIONS.md](./FRICTIONS.md) for dogfood findings.
 
 # remote-backend
 
@@ -33,9 +33,14 @@ gsutil ls -p terradart-validate | grep tfstate
 
 ## Migrate Stage 0 state into the new bucket
 
-After the bucket is created, switch this recipe's own state into it:
+After the bucket is created, switch this recipe's own state into it.
+Stage 0 uses the local backend emitted by the Stack in `main.tf.json`
+(`terraform { backend "local" {} }`); to migrate, create a new
+`tf-out/terraform.tf` that overrides it with the GCS backend
+(Terraform picks the HCL `terraform.tf` over the JSON-embedded block
+when both are present in the working directory):
 
-1. Edit `tf-out/terraform.tf`:
+1. Create `tf-out/terraform.tf`:
 
    ```hcl
    terraform {

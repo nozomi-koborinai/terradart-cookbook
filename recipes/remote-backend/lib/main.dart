@@ -6,18 +6,15 @@
 /// `tf-out/terraform.tf`.
 ///
 /// Pattern demonstrated: **introduce remote state to a previously local Stack**.
-/// Includes versioning + uniform bucket-level access + retention policy
-/// suitable for a long-lived terraform state container.
+/// Includes versioning + uniform bucket-level access suitable for a
+/// long-lived terraform state container.
 library;
-
-import 'dart:convert' as dart_convert;
-import 'dart:io';
 
 import 'package:terradart_core/terradart_core.dart';
 import 'package:terradart_google/provider.dart';
 import 'package:terradart_google/storage.dart';
 
-class RemoteBackendStack extends Stack {
+final class RemoteBackendStack extends Stack {
   RemoteBackendStack({
     required this.projectId,
     required this.bucketName,
@@ -25,13 +22,14 @@ class RemoteBackendStack extends Stack {
           providers: [
             GoogleProvider(project: projectId, region: 'asia-northeast1'),
           ],
+          backend: const LocalBackend(),
         ) {
     add(GoogleStorageBucket(
       localName: 'tfstate',
       name: TfArg.literal(bucketName),
       location: TfArg.literal('asia-northeast1'),
       uniformBucketLevelAccess: TfArg.literal(true),
-      versioning: const Versioning(enabled: true),
+      versioning: StorageBucketVersioning(enabled: TfArg.literal(true)),
       // forceDestroy: false is the default; explicit here for clarity.
       // State buckets are long-lived; destroy must be a deliberate action.
       forceDestroy: TfArg.literal(false),
@@ -40,14 +38,4 @@ class RemoteBackendStack extends Stack {
 
   final String projectId;
   final String bucketName;
-
-  @override
-  Future<void> synth({required String outDir}) async {
-    final result = StackSynth.synth(this);
-    await Directory(outDir).create(recursive: true);
-    final tfFile = File('$outDir/main.tf.json');
-    await tfFile.writeAsString(
-      const dart_convert.JsonEncoder.withIndent('  ').convert(result.tfJson),
-    );
-  }
 }
