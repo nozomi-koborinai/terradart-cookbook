@@ -249,3 +249,42 @@ Optional terradart enhancement: a `Stack.teardown()` helper that orchestrates Cl
 ## D1b (GCS backend)
 
 (filled in during the D1b apply cycle.)
+
+## v0.11.0 dogfood
+
+### README claims a `coffee_service_uri` Terraform output that the Stack does not actually emit
+
+**Context:** v0.11.0 surface fresh-state apply against `terradart-validate`. Apply succeeded (28 resources, ~9 min including Cloud SQL). Followed the README smoke section verbatim:
+
+```bash
+SERVICE_URL=$(terraform output -raw coffee_service_uri)
+curl -i "$SERVICE_URL"
+```
+
+**Friction:** `terraform output` returns `No outputs found`. The recipe Stack does not call `addExport` for `coffee_service_uri`, and the synthesized `main.tf.json` has no `output` block. The README's smoke recipe is uncopypastable as-written.
+
+Workaround used during this dogfood: `SERVICE_URL=$(gcloud run services describe coffee-shop --project terradart-validate --region asia-northeast1 --format='value(status.url)')`. GET / and POST /order both returned HTTP 200 — endpoint is healthy, only the discovery path was broken.
+
+**Proposed fix:** either (a) add `addExport('coffee_service_uri', coffeeService.uri)` in `lib/service.dart` to make the README example accurate (preferred — this is the kind of typed export that v0.11.0 `setAppExportsOutputPath` is designed to surface), or (b) replace the README smoke section with the gcloud-based URL lookup. (a) is more in the spirit of the recipe (demonstrates the AppExport feature); (b) is a one-line README change. Either way, the README and Stack should agree.
+
+**Tracked:** Documented here for the next polish wave.
+
+### `service_networking_connection` destroy fails first time; PSA workaround in README still required
+
+**Context:** v0.11.0 surface `terraform destroy` after the apply above. 26 of 28 resources destroyed cleanly on the first pass; PSA connection + dependent VPC hung with `Error code 9: Producer services (e.g. CloudSQL, Cloud Memstore, etc.) are still using this connection.`
+
+**Friction:** Same behavior the README's "Teardown gotcha" section already documents. Cloud SQL is gone (tenant-side cleanup pending), but Terraform can't proceed with the consumer-side peering until GCP's tenant-side cleanup completes (can take hours).
+
+Applied the documented workaround verbatim:
+
+```bash
+gcloud compute networks peerings delete servicenetworking-googleapis-com \
+  --network=coffee-shop-vpc --project=terradart-validate --quiet
+terraform destroy -auto-approve
+```
+
+Retry destroyed the remaining 2 resources (VPC + PSA connection) in 11s. Total teardown clean.
+
+**Proposed fix:** none for terradart or the recipe — this is GCP provider behavior. The README's existing "Teardown gotcha" section is accurate and the workaround works. Reconfirmed under v0.11.0.
+
+**Tracked:** Pre-existing finding, reconfirmed.
