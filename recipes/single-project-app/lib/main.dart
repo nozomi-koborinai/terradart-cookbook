@@ -81,6 +81,42 @@ final class SingleProjectAppStack extends Stack {
     final emailChannel = add(buildEmailChannel(alertEmail));
     add(buildUptimeCheck(coffeeService));
     add(buildDownAlert(emailChannel));
+
+    // ===== AppExports — IaC ↔ application seam =============================
+    // `coffee_service_uri` is apply-time known (Cloud Run assigns the URL),
+    // so it surfaces as a Terraform output that the README's smoke recipe
+    // consumes via `terraform output -raw coffee_service_uri`.
+    //
+    // `SERVICE_NAME` and `REGION` are synth-time literals — `setAppExports`
+    // materialises them as `const` declarations in
+    // `lib/generated/single_project_app.app.dart`, giving any consumer that
+    // depends on this package typed (rename-safe) access without duplicating
+    // the string literals across the codebase.
+    addExport(
+      'coffee_service_uri',
+      ResourceIdExport(
+        coffeeService.uri,
+        emitTerraformOutput: true,
+        description:
+            'URL of the Cloud Run v2 service. Populated after terraform apply.',
+      ),
+    );
+    addExport(
+      'SERVICE_NAME',
+      StringExport(
+        'coffee-shop',
+        description:
+            'Cloud Run v2 service name. Matches the Terraform resource name.',
+      ),
+    );
+    addExport(
+      'REGION',
+      StringExport(
+        'asia-northeast1',
+        description: 'GCP region this recipe deploys into.',
+      ),
+    );
+    setAppExportsOutputPath('lib/generated/single_project_app.app.dart');
   }
 
   final String projectId;
