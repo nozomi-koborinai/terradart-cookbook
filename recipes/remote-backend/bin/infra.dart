@@ -16,6 +16,6 @@ Future<void> main() async {
     projectId: projectId,
     bucketName: bucketName,
   );
-  await stack.synth(outDir: 'tf-out');
+  await stack.writeTo('tf-out');
   print('synthesized to tf-out/main.tf.json (bucket: $bucketName)');
 }
