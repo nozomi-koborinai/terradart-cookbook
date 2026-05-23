@@ -33,9 +33,14 @@ gsutil ls -p terradart-validate | grep tfstate
 
 ## Migrate Stage 0 state into the new bucket
 
-After the bucket is created, switch this recipe's own state into it:
+After the bucket is created, switch this recipe's own state into it.
+Stage 0 uses the local backend emitted by the Stack in `main.tf.json`
+(`terraform { backend "local" {} }`); to migrate, create a new
+`tf-out/terraform.tf` that overrides it with the GCS backend
+(Terraform picks the HCL `terraform.tf` over the JSON-embedded block
+when both are present in the working directory):
 
-1. Edit `tf-out/terraform.tf`:
+1. Create `tf-out/terraform.tf`:
 
    ```hcl
    terraform {

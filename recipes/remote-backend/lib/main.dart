@@ -22,6 +22,7 @@ final class RemoteBackendStack extends Stack {
           providers: [
             GoogleProvider(project: projectId, region: 'asia-northeast1'),
           ],
+          backend: const LocalBackend(),
         ) {
     add(GoogleStorageBucket(
       localName: 'tfstate',
